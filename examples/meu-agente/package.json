@@ -1,0 +1,16 @@
+{
+  "name": "meu-agente",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "bun run src/index.ts",
+    "start": "bun run src/index.ts --loop",
+    "ingest": "bun run src/index.ts --ingest",
+    "digest": "bun run src/index.ts --digest"
+  },
+  "dependencies": {
+    "node-cron": "^3.0.3",
+    "rss-parser": "^3.13.0"
+  }
+}

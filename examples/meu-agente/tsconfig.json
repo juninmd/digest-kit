@@ -1,0 +1,20 @@
+{
+  "compilerOptions": {
+    "lib": ["ESNext"],
+    "target": "ESNext",
+    "module": "Preserve",
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "noEmit": true,
+    "strict": true,
+    "skipLibCheck": true,
+    "types": ["bun-types"],
+    // Só aqui: o exemplo mora dentro do próprio pacote, então aponta para o src
+    // em vez de instalar. Um consumidor de verdade usa `bun add @juninmd/digest-kit`.
+    "paths": {
+      "@juninmd/digest-kit": ["../../src/index.ts"]
+    }
+  },
+  "include": ["src"]
+}
