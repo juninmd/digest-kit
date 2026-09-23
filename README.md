@@ -125,7 +125,7 @@ runModelChain(models, call, { isEmpty, retry })  // cadeia de fallback de modelo
 
 ```ts
 // evo-agent: rate limit repete no mesmo modelo (3s, 6s, …); resposta vazia pula
-runModelChain(models, call, { isEmpty: (t) => !t, retry: { attempts: 6, baseMs: 3000 } });
+runModelChain(models, call, { isEmpty: (t) => !t, retry: { attempts: 6, baseMs: 3000, maxMs: 48_000 } });
 // fast-news: sem retry — cooldown do LiteLLM ("try again in 300s") só queima o CronJob
 runModelChain([fast, cloud], call);
 ```
