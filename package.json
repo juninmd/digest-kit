@@ -1,18 +1,32 @@
 {
   "name": "@juninmd/digest-kit",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Núcleo dos agentes de digest: RSS → SQLite → IA → Telegram. O agente vira um arquivo de tópico.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/juninmd/digest-kit.git"
+  },
   "type": "module",
   "module": "src/index.ts",
   "types": "src/index.ts",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./core": {
+      "types": "./dist/core.d.ts",
+      "bun": "./src/core.ts",
+      "default": "./dist/core.js"
+    }
   },
-  "files": ["src", "README.md"],
+  "files": ["src", "dist", "README.md"],
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
   "scripts": {
     "test": "bun test",
     "typecheck": "tsc --noEmit",
-    "example": "bun run examples/meu-agente/src/index.ts"
+    "example": "bun run examples/meu-agente/src/index.ts",
+    "build": "tsc -p tsconfig.build.json",
+    "prepare": "tsc -p tsconfig.build.json"
   },
   "dependencies": {
     "node-cron": "^3.0.3",
@@ -24,6 +38,7 @@
     "typescript": "^5.7.3"
   },
   "engines": {
-    "bun": ">=1.1.0"
+    "bun": ">=1.1.0",
+    "node": ">=20"
   }
 }

@@ -105,6 +105,34 @@ const agent = createAgent(topic, {
 Peças avulsas também são exportadas: `createStore`, `createChat`, `createSend`,
 `createFetchFeed`, `loadConfig`, `clean`, `idFor`, `splitMessage`, `formatItems`, `redact`.
 
+### `@juninmd/digest-kit/core` — sem Bun
+
+Peças puras, sem `bun:*`, extraídas do que já roda em produção no `evo-agent` e no `fast-news`:
+
+```ts
+extractJsonObject(text)   // JSON do LLM embrulhado em prosa/fence, sem regex gulosa
+isSafeExternalUrl(url)    // guarda SSRF: só https público (bloqueia privados, metadata, *.internal)
+isPollutedProse(text)     // vazamento de prompt ou artefato de decode (<unk>, U+FFFD)
+hasPromptLeak, hasModelArtifacts, hasEnglishSentence, looksGarbled
+redact(text)              // mascara chaves, Bearer e token de bot do Telegram
+withRetry(fn, opts)       // backoff exponencial com teto; isRetryable decide o que repete
+isRateLimitError(err)     // 429 / RESOURCE_EXHAUSTED / RateLimitError, por status ou texto
+runModelChain(models, call, { isEmpty, retry })  // cadeia de fallback de modelos
+```
+
+`runModelChain` não conhece SDK: `call` recebe o modelo e chama o que o app usa
+(`generateText`, `generateObject`, `fetch`). Os dois perfis em produção:
+
+```ts
+// evo-agent: rate limit repete no mesmo modelo (3s, 6s, …); resposta vazia pula
+runModelChain(models, call, { isEmpty: (t) => !t, retry: { attempts: 6, baseMs: 3000, maxMs: 48_000 } });
+// fast-news: sem retry — cooldown do LiteLLM ("try again in 300s") só queima o CronJob
+runModelChain([fast, cloud], call);
+```
+
+Em Bun, `./core` resolve para `src/core.ts`. Em Node, para `dist/core.js` + `.d.ts`,
+gerados por `bun run build` (e pelo `prepare`, então dependência via git também builda).
+
 ## Migrando um agente existente
 
 1. `bun add @juninmd/digest-kit` (ou `"file:../digest-kit"` enquanto não publicar).
@@ -118,11 +146,30 @@ Resultado por agente: **~450 linhas a menos**, mesmo comportamento.
 > O `DB_PATH` não muda de schema: a tabela `items` é idêntica à do template, então o SQLite
 > que já está no volume continua sendo lido sem migração.
 
+## Instalação (GitHub Packages)
+
+O pacote é privado no GitHub Packages. No projeto consumidor:
+
+```ini
+# .npmrc
+@juninmd:registry=https://npm.pkg.github.com
+//npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}
+```
+
+- **CI/Docker:** `NODE_AUTH_TOKEN` = `GITHUB_TOKEN` do workflow (o repo precisa de leitura em
+  *Package settings → Manage Actions access*). No Docker, passe como secret do BuildKit,
+  nunca como `ARG`.
+- **Local:** PAT *classic* com `read:packages`.
+
+Publicar: suba `version` no `package.json` e crie a tag igual (`v0.2.0`). O workflow
+`publish.yml` recusa tag diferente da versão, roda typecheck + testes e publica.
+
 ## Desenvolvimento
 
 ```bash
 bun install
-bun test          # 38 testes
+bun test          # 67 testes
+bun run build     # dist/ para consumidores Node
 bunx tsc --noEmit
 ```
 
