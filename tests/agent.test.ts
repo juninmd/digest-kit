@@ -196,3 +196,13 @@ describe("defineTopic", () => {
     ).toThrow("nenhum feed configurado");
   });
 });
+
+describe("startLoop", () => {
+  test("schedules both crons and the returned stop releases them", () => {
+    const h = harness({});
+    const agent = createAgent(topic, h.deps);
+    const stop = agent.startLoop();
+    expect(h.logs.some((l) => l.includes("agente ativo"))).toBe(true);
+    expect(() => stop()).not.toThrow();
+  });
+});
