@@ -148,18 +148,20 @@ Resultado por agente: **~450 linhas a menos**, mesmo comportamento.
 
 ## Instalação (GitHub Packages)
 
-O pacote é privado no GitHub Packages. No projeto consumidor:
+O pacote é público, mas o registry npm do GitHub Packages exige token até para leitura.
+No projeto consumidor, o `.npmrc` versionado só aponta o escopo:
 
 ```ini
 # .npmrc
 @juninmd:registry=https://npm.pkg.github.com
-//npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}
 ```
 
-- **CI/Docker:** `NODE_AUTH_TOKEN` = `GITHUB_TOKEN` do workflow (o repo precisa de leitura em
-  *Package settings → Manage Actions access*). No Docker, passe como secret do BuildKit,
-  nunca como `ARG`.
-- **Local:** PAT *classic* com `read:packages`.
+- **Local:** PAT *classic* com `read:packages` no `~/.npmrc` do usuário
+  (`npm config set //npm.pkg.github.com/:_authToken <PAT>`), nunca no repo.
+- **CI:** `GITHUB_TOKEN` do workflow com `permissions: packages: read`
+  (`actions/setup-node` com `registry-url` + `scope`, e `NODE_AUTH_TOKEN` no `npm ci`).
+- **Docker:** secret do BuildKit, nunca `ARG`:
+  `RUN --mount=type=secret,id=npmrc,target=/root/.npmrc npm ci`.
 
 Publicar: suba `version` no `package.json` e crie a tag igual (`v0.2.0`). O workflow
 `publish.yml` recusa tag diferente da versão, roda typecheck + testes e publica.
@@ -168,7 +170,7 @@ Publicar: suba `version` no `package.json` e crie a tag igual (`v0.2.0`). O work
 
 ```bash
 bun install
-bun test          # 67 testes
+bun test          # 68 testes
 bun run build     # dist/ para consumidores Node
 bunx tsc --noEmit
 ```
