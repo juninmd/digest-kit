@@ -105,6 +105,22 @@ const agent = createAgent(topic, {
 Peças avulsas também são exportadas: `createStore`, `createChat`, `createSend`,
 `createFetchFeed`, `loadConfig`, `clean`, `idFor`, `splitMessage`, `formatItems`, `redact`.
 
+### `@juninmd/digest-kit/core` — sem Bun
+
+Peças puras, sem `bun:*`, extraídas do que já roda em produção no `evo-agent` e no `fast-news`:
+
+```ts
+extractJsonObject(text)   // JSON do LLM embrulhado em prosa/fence, sem regex gulosa
+isSafeExternalUrl(url)    // guarda SSRF: só https público (bloqueia privados, metadata, *.internal)
+isPollutedProse(text)     // vazamento de prompt ou artefato de decode (<unk>, U+FFFD)
+hasPromptLeak, hasModelArtifacts, hasEnglishSentence, looksGarbled
+redact(text)              // mascara chaves, Bearer e token de bot do Telegram
+```
+
+O Node 24 importa `src/core.ts` direto. Consumir via `node_modules` num app Node
+ainda exige um build (`.ts` dentro de `node_modules` não tem type stripping) — é o passo
+de "virar lib publicada".
+
 ## Migrando um agente existente
 
 1. `bun add @juninmd/digest-kit` (ou `"file:../digest-kit"` enquanto não publicar).
@@ -122,7 +138,7 @@ Resultado por agente: **~450 linhas a menos**, mesmo comportamento.
 
 ```bash
 bun install
-bun test          # 38 testes
+bun test          # 58 testes
 bunx tsc --noEmit
 ```
 

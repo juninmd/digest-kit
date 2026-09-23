@@ -70,3 +70,14 @@ describe("redact", () => {
     expect(redact('{"api_key": "supersecreto123"}')).not.toContain("supersecreto123");
   });
 });
+
+describe("redact", () => {
+  test("masks Telegram bot tokens in API URLs", () => {
+    const out = redact("POST https://api.telegram.org/bot123456789:AAH-abc_DEF123456/sendMessage failed");
+    expect(out).not.toContain("AAH-abc_DEF123456");
+  });
+  test("masks bearer tokens", () => {
+    expect(redact("Authorization: Bearer eyJhbGciOi.xyz")).not.toContain("eyJhbGciOi");
+    expect(redact("got header bearer abc.def.ghi")).not.toContain("abc.def.ghi");
+  });
+});

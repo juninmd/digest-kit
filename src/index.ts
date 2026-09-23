@@ -1,6 +1,15 @@
 export { createAgent, defineTopic, runAgent } from "./agent.ts";
 export { createChat, redact } from "./ai.ts";
 export { loadConfig } from "./config.ts";
+export {
+  extractJsonObject,
+  hasEnglishSentence,
+  hasModelArtifacts,
+  hasPromptLeak,
+  isPollutedProse,
+  isSafeExternalUrl,
+  looksGarbled,
+} from "./core.ts";
 export { createFetchFeed } from "./feeds.ts";
 export { createStore } from "./store.ts";
 export { createSend } from "./telegram.ts";
