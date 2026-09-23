@@ -1,7 +1,11 @@
 {
   "name": "@juninmd/digest-kit",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Núcleo dos agentes de digest: RSS → SQLite → IA → Telegram. O agente vira um arquivo de tópico.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/juninmd/digest-kit.git"
+  },
   "type": "module",
   "module": "src/index.ts",
   "types": "src/index.ts",
@@ -14,6 +18,9 @@
     }
   },
   "files": ["src", "dist", "README.md"],
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
   "scripts": {
     "test": "bun test",
     "typecheck": "tsc --noEmit",
@@ -31,6 +38,7 @@
     "typescript": "^5.7.3"
   },
   "engines": {
-    "bun": ">=1.1.0"
+    "bun": ">=1.1.0",
+    "node": ">=20"
   }
 }
