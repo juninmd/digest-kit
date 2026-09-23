@@ -59,7 +59,7 @@ describe("isSafeExternalUrl", () => {
   it("rejects internal suffixes carrying a trailing dot", () => {
     for (const target of [
       "https://localhost./feed",
-      "https://searxng.searxng.svc.cluster.local./feed",
+      "https://feeds.default.svc.cluster.local./feed",
       "https://service.internal./feed",
       "https://api.localhost./feed",
       "https://printer.home.arpa./feed",
