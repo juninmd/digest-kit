@@ -2,13 +2,18 @@ export { createAgent, defineTopic, runAgent } from "./agent.ts";
 export { createChat, redact } from "./ai.ts";
 export { loadConfig } from "./config.ts";
 export {
+  backoffDelay,
   extractJsonObject,
   hasEnglishSentence,
   hasModelArtifacts,
   hasPromptLeak,
   isPollutedProse,
+  isRateLimitError,
   isSafeExternalUrl,
   looksGarbled,
+  ModelChainError,
+  runModelChain,
+  withRetry,
 } from "./core.ts";
 export { createFetchFeed } from "./feeds.ts";
 export { createStore } from "./store.ts";
