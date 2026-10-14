@@ -1,6 +1,7 @@
 {
   "name": "@juninmd/digest-kit",
-  "version": "0.2.2",
+  "version": "0.2.3",
+  "license": "MIT",
   "description": "Núcleo dos agentes de digest: RSS → SQLite → IA → Telegram. O agente vira um arquivo de tópico.",
   "repository": {
     "type": "git",
@@ -21,7 +22,7 @@
       "default": "./dist/core.js"
     }
   },
-  "files": ["src", "dist", "README.md"],
+  "files": ["src", "dist", "README.md", "LICENSE"],
   "publishConfig": {
     "access": "public"
   },
