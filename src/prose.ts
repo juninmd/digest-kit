@@ -1,5 +1,4 @@
-// Detectors proven in evo-agent (src/agent/editorial.ts) against drifted
-// fallbacks; defaults target pt-BR prose.
+// Detectors against drifted fallbacks; defaults target pt-BR prose.
 
 const MODEL_ARTIFACT_TOKENS = /<unk>|<pad>|\[UNK\]|<\/?s>|�/i;
 

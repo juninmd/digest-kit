@@ -6,7 +6,6 @@ on:
 
 permissions:
   contents: read
-  packages: write
 
 jobs:
   publish:
@@ -20,13 +19,13 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: 24
-          registry-url: https://npm.pkg.github.com
-          scope: "@juninmd"
+          registry-url: https://registry.npmjs.org
       - name: Tag must match package.json version
         run: test "v$(node -p 'require("./package.json").version')" = "$GITHUB_REF_NAME"
       - run: bun install --frozen-lockfile
       - run: bun run typecheck
       - run: bun test
-      - run: npm publish
+      - run: bun run build
+      - run: npm publish --access public
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
