@@ -17,6 +17,17 @@ bun run typecheck             # Verificação de tipos
 bun run build                 # Gera dist/core.js e dist/core.d.ts
 ```
 
+Não há script de lint. Exemplo local sem credenciais: `DB_PATH=:memory: bun run example -- --ingest`.
+
+## Gates de CI
+- `validate.yml` (PR e push em `main`): reusable `base-actions` de validação, com auditoria de dependências e varredura de segredos.
+- `security.yml` (push em `main`, semanal, manual): reusable `base-actions` de security scan (Gitleaks).
+- `publish.yml` (tag `v*`): typecheck, test, build e `npm publish`.
+
+## Não fazer
+- Importar `bun:*` em módulos reexportados por `src/core.ts` (o subpath `./core` roda em Node).
+- Commitar `.env`, tokens ou chaves; o `.gitignore` já cobre `.env` e `data/`.
+
 ## Regras de Publicação
 - Registry: npm público (`https://registry.npmjs.org/`).
 - Scope: `@juninmd` com `"access": "public"`.

@@ -1,0 +1,17 @@
+# Saida real de examples/meu-agente (script "example" do package.json), sem credenciais.
+# Ambiente: DB_PATH=:memory: e sem TELEGRAM_BOT_TOKEN. O runAgent nao tem --help:
+# qualquer argumento fora de --ingest/--digest/--loop executa um ciclo completo.
+# O ciclo completo (sem flag) nao foi executado: exige um provedor de IA acessivel.
+# Neste ambiente o feed "Hacker News" recusou a conexao (ECONNREFUSED); a linha
+# abaixo mostra o isolamento de falha por feed, nao um erro do kit.
+
+$ DB_PATH=:memory: bun run example -- --ingest
+$ bun run examples/meu-agente/src/index.ts --ingest
+  ! feed "Hacker News" falhou: Error: ECONNREFUSED
+  + 10 de GitHub Blog
+[ingest] 10 itens novos
+
+# Banco novo e vazio (:memory:): nada a resumir, a IA nao e chamada.
+$ DB_PATH=:memory: bun run example -- --digest
+$ bun run examples/meu-agente/src/index.ts --digest
+[digest] nada novo para resumir
