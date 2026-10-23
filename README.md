@@ -6,7 +6,7 @@
 *RSS → SQLite → IA → Telegram*
 
 [![npm version](https://img.shields.io/npm/v/@juninmd/digest-kit.svg?style=flat-square&color=CB3837)](https://www.npmjs.com/package/@juninmd/digest-kit)
-[![CI](https://img.shields.io/github/actions/workflow/status/juninmd/digest-kit/ci.yml?branch=main&style=flat-square&label=CI)](https://github.com/juninmd/digest-kit/actions)
+[![CI](https://img.shields.io/github/actions/workflow/status/juninmd/digest-kit/validate.yml?branch=main&style=flat-square&label=CI)](https://github.com/juninmd/digest-kit/actions)
 [![Bun](https://img.shields.io/badge/Bun-%3E%3D1.1.0-black?style=flat-square&logo=bun)](https://bun.sh)
 [![Node.js](https://img.shields.io/badge/Node.js-%3E%3D20-339933?style=flat-square&logo=node.js)](https://nodejs.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](LICENSE)
@@ -15,29 +15,50 @@
 
 ---
 
-O `@juninmd/digest-kit` extrai a infraestrutura comum de agentes de resumo diário para que você só precise escrever as regras do tópico. Ele cuida do ciclo completo: ingestão de feeds RSS/Atom, deduplicação em SQLite, sumarização contextualizada via LLM e publicação formatada no Telegram.
+O `@juninmd/digest-kit` é uma biblioteca para quem mantém agentes de resumo diário (digest) e não quer reescrever a mesma infraestrutura a cada tópico. Ele resolve o ciclo completo: coleta feeds RSS/Atom, deduplica em SQLite, resume com um LLM e publica no Telegram. O agente consumidor escreve apenas o arquivo de tópico (nome, prompt de sistema e feeds).
 
-```text
-  ┌─────────────────┐
-  │ RSS/Atom Feeds  │
-  └────────┬────────┘
-           ▼
-  ┌─────────────────┐
-  │ SQLite (Store)  │  ◄── Idempotência por hash do link
-  └────────┬────────┘
-           ▼
-  ┌─────────────────┐
-  │  IA / LLM Chat  │  ◄── Ollama, OpenAI, Anthropic, Gemini ou Compatible (LiteLLM)
-  └────────┬────────┘
-           ▼
-  ┌─────────────────┐
-  │ Telegram/Stdout │  ◄── Split inteligente de mensagens longas
-  └─────────────────┘
+## Índice
+
+- [Funcionalidades](#-funcionalidades)
+- [Arquitetura](#-arquitetura)
+- [Instalação](#-instalação)
+- [Uso rápido](#-uso-rápido)
+- [Configuração](#-configuração-variáveis-de-ambiente)
+- [Garantias e resiliência](#-garantias-e-resiliência)
+- [Subpath core](#-juninmddigest-kitcore-nodejs--bun)
+- [Desenvolvimento e gates de CI](#-desenvolvimento)
+
+## ✨ Funcionalidades
+
+- `defineTopic` / `runAgent` / `createAgent`: definição do tópico e CLI padrão do agente (`--ingest`, `--digest`, `--loop`).
+- Ingestão de feeds RSS/Atom com falha isolada por feed e limite de itens (`MAX_ITEMS_PER_FEED`).
+- Persistência e deduplicação em SQLite (`bun:sqlite`), com id derivado do hash do link.
+- Chat com LLM por provedor: `ollama`, `openai`, `anthropic`, `google` ou `compatible` (gateway OpenAI-compatível).
+- Entrega no Telegram com quebra de mensagem longa; sem token, imprime no console.
+- Agendamento por cron (`node-cron`) para ingestão e digest.
+- Primitivas puras em `@juninmd/digest-kit/core`, sem `bun:*`: `extractJsonObject`, `isSafeExternalUrl`, `withRetry`, `runModelChain`, filtros de prosa e `redact`.
+
+## 🏗️ Arquitetura
+
+```mermaid
+flowchart LR
+  T["topic.ts (defineTopic)"] --> A["agent.ts (createAgent / runAgent)"]
+  A --> F["feeds.ts (RSS/Atom)"]
+  F --> S[("store.ts (SQLite)")]
+  S --> A
+  A --> AI["ai.ts (createChat)"]
+  AI --> A
+  A --> TG["telegram.ts (createSend)"]
+  A -. cron .-> C["node-cron"]
 ```
+
+Os módulos usados também no Node (`ai.ts`, `chain.ts`, `json.ts`, `net.ts`, `prose.ts`, `retry.ts`, `text.ts`) são reexportados por `src/core.ts`; `store.ts` depende de `bun:sqlite` e fica fora dele.
 
 ---
 
 ## 🚀 Instalação
+
+**Requisitos:** Bun `>=1.1.0` (pacote raiz, usa `bun:sqlite`) ou Node `>=20` (apenas o subpath `./core`).
 
 Disponível no registro público do **npm**:
 
@@ -100,6 +121,37 @@ Seu agente já conta com comandos prontos:
 | `bun run src/index.ts --loop` | Fica ativo em segundo plano executando os agendamentos cron |
 
 > Veja um agente completo e funcional na pasta [`examples/meu-agente`](examples/meu-agente).
+
+### 📟 Exemplos de execução
+
+Saídas reais do exemplo, sem credenciais (`DB_PATH=:memory:`, sem `TELEGRAM_BOT_TOKEN`), registradas em [`docs/terminal.txt`](docs/terminal.txt):
+
+```bash
+DB_PATH=:memory: bun run example -- --ingest
+```
+
+```text
+  + 10 de GitHub Blog
+[ingest] 10 itens novos
+```
+
+Um feed indisponível vira aviso e não derruba o ciclo (nesse ambiente o Hacker News recusou a conexão):
+
+```text
+  ! feed "Hacker News" falhou: Error: ECONNREFUSED
+```
+
+```bash
+DB_PATH=:memory: bun run example -- --digest
+```
+
+```text
+[digest] nada novo para resumir
+```
+
+- Sem `TELEGRAM_BOT_TOKEN`/`TELEGRAM_CHAT_IDS`, o digest é impresso no console com o prefixo `[telegram] não configurado — imprimindo no console` (comportamento de `src/telegram.ts`).
+- O ciclo completo (`bun run example`, sem flag) chama o provedor de IA e **não foi executado** aqui: saída não verificada.
+- `runAgent` não tem `--help`; argumentos desconhecidos executam um ciclo completo.
 
 ---
 
@@ -177,6 +229,20 @@ bun test          # Suite completa de 68 testes unitários
 bun run build     # Compila dist/core.js e dist/core.d.ts para Node.js
 bun run typecheck # Checagem estrita de tipos TypeScript
 ```
+
+O repositório não define script de lint próprio. Para rodar o exemplo localmente: `bun run example`.
+
+### Gates de CI
+
+| Workflow | Gatilho | O que checa |
+|---|---|---|
+| `.github/workflows/validate.yml` | PR e push em `main` | Reusable `juninmd/base-actions` (`reusable-validate.yml`): validação do PR, auditoria de dependências (severidade `high`, bloqueante) e varredura de segredos no intervalo do PR |
+| `.github/workflows/security.yml` | push em `main`, semanal (domingo 00:00 UTC), manual | Reusable `reusable-security-scan.yml` (Gitleaks) |
+| `.github/workflows/publish.yml` | tag `v*` | Exige tag igual à `version` do `package.json`; roda `typecheck`, `test`, `build` e `npm publish --access public` (segredo `NPM_TOKEN`) |
+
+### Screenshot
+
+Não se aplica: biblioteca/CLI sem interface gráfica. A saída de terminal está em [`docs/terminal.txt`](docs/terminal.txt).
 
 ---
 
