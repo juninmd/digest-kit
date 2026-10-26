@@ -49,6 +49,22 @@ describe("splitMessage", () => {
     expect(parts.length).toBe(4);
     for (const p of parts) expect(p.length).toBeLessThanOrEqual(300);
   });
+
+  test("linha de tamanho exato não gera pedaço vazio", () => {
+    const parts = splitMessage(`${"a".repeat(300)}\nb`, 300);
+    expect(parts).toEqual(["a".repeat(300), "b"]);
+  });
+
+  test("fatiamento não corta par substituto (emoji) ao meio", () => {
+    const parts = splitMessage("😀".repeat(200), 301);
+    expect(parts.join("")).toBe("😀".repeat(200));
+    for (const p of parts) {
+      expect(p.length).toBeGreaterThan(0);
+      expect(p.length).toBeLessThanOrEqual(301);
+      const last = p.charCodeAt(p.length - 1);
+      expect(last >= 0xd800 && last <= 0xdbff).toBe(false);
+    }
+  });
 });
 
 describe("formatItems", () => {
