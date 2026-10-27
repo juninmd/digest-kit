@@ -28,10 +28,17 @@ export function splitMessage(text: string, max = 3800): string[] {
         out.push(buf.trimEnd());
         buf = "";
       }
-      for (let i = 0; i < line.length; i += max) out.push(line.slice(i, i + max));
+      for (let i = 0; i < line.length; ) {
+        let end = Math.min(i + max, line.length);
+        // Não separa um par substituto (emoji): recua se o corte cai após o high surrogate.
+        const last = line.charCodeAt(end - 1);
+        if (end < line.length && end - 1 > i && last >= 0xd800 && last <= 0xdbff) end--;
+        out.push(line.slice(i, end));
+        i = end;
+      }
       continue;
     }
-    if (buf.length + line.length + 1 > max) {
+    if (buf && buf.length + line.length + 1 > max) {
       out.push(buf.trimEnd());
       buf = "";
     }
