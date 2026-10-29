@@ -30,11 +30,12 @@ O `@juninmd/digest-kit` é uma biblioteca para quem mantém agentes de resumo di
 
 ## ✨ Funcionalidades
 
-- `defineTopic` / `runAgent` / `createAgent`: definição do tópico e CLI padrão do agente (`--ingest`, `--digest`, `--loop`).
+- `defineTopic` / `runAgent` / `createAgent`: definição do tópico e CLI padrão do agente (`--ingest`, `--digest`, `--loop`, `--dry-run`, `--help`).
 - Ingestão de feeds RSS/Atom com falha isolada por feed e limite de itens (`MAX_ITEMS_PER_FEED`).
 - Persistência e deduplicação em SQLite (`bun:sqlite`), com id derivado do hash do link.
 - Chat com LLM por provedor: `ollama`, `openai`, `anthropic`, `google` ou `compatible` (gateway OpenAI-compatível).
-- Entrega no Telegram com quebra de mensagem longa; sem token, imprime no console.
+- Entrega no Telegram com quebra de mensagem longa; Markdown recusado (400) é reenviado como texto simples; se nenhum chat recebe, os itens continuam pendentes. Sem token, imprime no console.
+- Hook `onDigest` (em `createAgent`/`runAgent`) para arquivar cada digest enviado em outro destino.
 - Agendamento por cron (`node-cron`) para ingestão e digest.
 - Primitivas puras em `@juninmd/digest-kit/core`, sem `bun:*`: `extractJsonObject`, `isSafeExternalUrl`, `withRetry`, `runModelChain`, filtros de prosa e `redact`.
 
@@ -109,6 +110,16 @@ import { topic } from "./topic.ts";
 await runAgent(topic);
 ```
 
+Para arquivar cada digest enviado (ex.: num second brain), passe `onDigest`. Ele roda só depois de um envio bem-sucedido e uma falha nele vira log, sem desfazer o envio:
+
+```ts
+await runAgent(topic, {
+  onDigest: async ({ topic, message, items }) => {
+    await fetch(process.env.ARCHIVE_URL!, { method: "POST", body: JSON.stringify({ topic: topic.name, message, items }) });
+  },
+});
+```
+
 ### 🛠️ CLI Integrada
 
 Seu agente já conta com comandos prontos:
@@ -119,6 +130,8 @@ Seu agente já conta com comandos prontos:
 | `bun run src/index.ts --ingest` | Apenas coleta novos itens dos feeds e grava no banco |
 | `bun run src/index.ts --digest` | Apenas resume itens pendentes e transmite a mensagem |
 | `bun run src/index.ts --loop` | Fica ativo em segundo plano executando os agendamentos cron |
+| `bun run src/index.ts --digest --dry-run` | Monta o digest e imprime, sem enviar e sem marcar itens (vale também sem modo) |
+| `bun run src/index.ts --help` | Mostra o uso; argumento desconhecido sai com código 2 sem rodar nada |
 
 > Veja um agente completo e funcional na pasta [`examples/meu-agente`](examples/meu-agente).
 
@@ -151,7 +164,6 @@ DB_PATH=:memory: bun run example -- --digest
 
 - Sem `TELEGRAM_BOT_TOKEN`/`TELEGRAM_CHAT_IDS`, o digest é impresso no console com o prefixo `[telegram] não configurado — imprimindo no console` (comportamento de `src/telegram.ts`).
 - O ciclo completo (`bun run example`, sem flag) chama o provedor de IA e **não foi executado** aqui: saída não verificada.
-- `runAgent` não tem `--help`; argumentos desconhecidos executam um ciclo completo.
 
 ---
 

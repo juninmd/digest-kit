@@ -1,11 +1,12 @@
 import cron from "node-cron";
 import { createChat } from "./ai.ts";
+import { parseArgs, USAGE } from "./args.ts";
 import { loadConfig } from "./config.ts";
 import { createFetchFeed } from "./feeds.ts";
 import { createStore } from "./store.ts";
 import { createSend } from "./telegram.ts";
 import { clean, formatItems, idFor } from "./text.ts";
-import type { Agent, AgentDeps, Config, Topic } from "./types.ts";
+import type { Agent, AgentDeps, Config, DigestOptions, Topic } from "./types.ts";
 
 /** Só valida o que o consumidor escreve à mão e ajuda o TS a inferir. */
 export function defineTopic(topic: Topic): Topic {
@@ -61,7 +62,7 @@ export function createAgent(topic: Topic, deps: AgentDeps = {}): Agent {
     return total;
   }
 
-  async function digest(): Promise<string | null> {
+  async function digest({ dryRun = false }: DigestOptions = {}): Promise<string | null> {
     const items = store.pendingItems(config.digestMaxItems);
     if (!items.length) {
       log("[digest] nada novo para resumir");
@@ -84,15 +85,26 @@ export function createAgent(topic: Topic, deps: AgentDeps = {}): Agent {
     const date = now().toLocaleDateString(config.locale, { timeZone: config.timezone });
     const message = `*${topic.emoji} ${topic.title} — ${date}*\n\n${body}`;
 
+    if (dryRun) {
+      log(`[digest] dry-run: nada enviado, itens continuam pendentes\n\n${message}`);
+      return message;
+    }
+
     await send(message);
     store.markDigested(items.map((it) => it.id));
     log(`[digest] enviado com ${items.length} itens`);
+    try {
+      await deps.onDigest?.({ topic, message, items });
+    } catch (e) {
+      // O digest já foi entregue e marcado: o arquivamento é secundário.
+      log(`[digest] onDigest falhou: ${e}`);
+    }
     return message;
   }
 
-  async function runOnce(): Promise<void> {
+  async function runOnce(options?: DigestOptions): Promise<void> {
     await ingest();
-    await digest();
+    await digest(options);
   }
 
   function startLoop(): () => void {
@@ -133,19 +145,30 @@ export async function runAgent(
   deps: AgentDeps = {},
   argv: string[] = process.argv.slice(2),
 ): Promise<void> {
-  const args = new Set(argv);
-  const agent = createAgent(topic, deps);
+  const parsed = parseArgs(argv);
+  if ("error" in parsed) {
+    console.error(`${parsed.error}\n\n${USAGE}`);
+    process.exitCode = 2;
+    return;
+  }
+  const { mode, dryRun } = parsed;
+  if (mode === "help") {
+    console.log(USAGE);
+    return;
+  }
 
-  if (args.has("--ingest")) {
+  // Criado só depois de validar os argumentos: abre o banco e lê o ambiente.
+  const agent = createAgent(topic, deps);
+  if (mode === "ingest") {
     await agent.ingest();
-  } else if (args.has("--digest")) {
-    await agent.digest();
-  } else if (args.has("--loop")) {
+  } else if (mode === "digest") {
+    await agent.digest({ dryRun });
+  } else if (mode === "loop") {
     await agent.ingest();
     agent.startLoop();
     return; // fica de pé; não fecha o store
   } else {
-    await agent.runOnce();
+    await agent.runOnce({ dryRun });
   }
   agent.close();
 }
