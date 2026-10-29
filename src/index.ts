@@ -1,4 +1,5 @@
 export { createAgent, defineTopic, runAgent } from "./agent.ts";
+export { type Mode, type Parsed, parseArgs, USAGE } from "./args.ts";
 export { createChat, redact } from "./ai.ts";
 export { loadConfig } from "./config.ts";
 export {
@@ -25,6 +26,8 @@ export type {
   AiProvider,
   ChatFn,
   Config,
+  DigestEvent,
+  DigestOptions,
   Feed,
   FetchFeedFn,
   Item,

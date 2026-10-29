@@ -26,6 +26,8 @@ export function createStore(dbPath: string): Store {
 
   const db = new Database(dbPath, { create: true });
   db.exec("PRAGMA journal_mode = WAL;");
+  // --ingest e --digest em processos separados disputam o mesmo arquivo: espera o lock.
+  db.exec("PRAGMA busy_timeout = 5000;");
   db.exec(SCHEMA);
 
   const insert = db.prepare(`

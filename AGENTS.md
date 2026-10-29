@@ -12,7 +12,7 @@
 ## Comandos
 ```bash
 bun install --frozen-lockfile # Instalação
-bun test                      # Testes (68 specs, sem rede nem side effects)
+bun test                      # Testes (85 specs, sem rede nem side effects)
 bun run typecheck             # Verificação de tipos
 bun run build                 # Gera dist/core.js e dist/core.d.ts
 ```

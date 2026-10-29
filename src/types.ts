@@ -88,6 +88,18 @@ export interface Store {
   close(): void;
 }
 
+/** O que um digest entregou — para arquivar em outro lugar (ex.: second brain). */
+export interface DigestEvent {
+  topic: Topic;
+  message: string;
+  items: Item[];
+}
+
+export interface DigestOptions {
+  /** monta a mensagem e devolve sem enviar, sem marcar itens e sem `onDigest` */
+  dryRun?: boolean;
+}
+
 export interface AgentDeps {
   config?: Partial<Config>;
   chat?: ChatFn;
@@ -97,6 +109,8 @@ export interface AgentDeps {
   /** relógio injetável — os testes precisam de data estável */
   now?: () => Date;
   log?: (msg: string) => void;
+  /** chamado após um envio bem-sucedido; falha aqui só gera log, não desfaz o envio */
+  onDigest?: (event: DigestEvent) => Promise<void>;
 }
 
 export interface Agent {
@@ -106,9 +120,9 @@ export interface Agent {
   /** Lê todos os feeds e grava os itens novos. Retorna quantos entraram. */
   ingest(): Promise<number>;
   /** Monta o digest dos itens pendentes, envia e marca como enviados. */
-  digest(): Promise<string | null>;
+  digest(options?: DigestOptions): Promise<string | null>;
   /** ingest + digest, uma vez. */
-  runOnce(): Promise<void>;
+  runOnce(options?: DigestOptions): Promise<void>;
   /** agenda os dois crons e fica de pé. Retorna uma função para parar. */
   startLoop(): () => void;
   close(): void;

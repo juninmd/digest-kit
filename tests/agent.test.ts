@@ -177,6 +177,56 @@ describe("digest", () => {
     expect(agent.store.pendingItems(10)).toHaveLength(2);
   });
 
+  test("dry-run devolve a mensagem sem enviar nem marcar", async () => {
+    const agent = createAgent(topic, h.deps);
+    await agent.ingest();
+    const message = await agent.digest({ dryRun: true });
+    expect(message).toContain("digest gerado");
+    expect(h.sent).toHaveLength(0);
+    expect(agent.store.pendingItems(10)).toHaveLength(2);
+  });
+
+  test("onDigest recebe mensagem e itens depois do envio", async () => {
+    const seen: { message: string; links: string[] }[] = [];
+    const agent = createAgent(topic, {
+      ...h.deps,
+      onDigest: async ({ message, items }) => {
+        seen.push({ message, links: items.map((it) => it.link) });
+      },
+    });
+    await agent.ingest();
+    await agent.digest();
+    expect(seen[0]?.message).toBe(h.sent[0] ?? "");
+    expect(seen[0]?.links.sort()).toEqual(["https://a.example/1", "https://a.example/2"]);
+  });
+
+  test("falha no onDigest não desfaz o envio", async () => {
+    const agent = createAgent(topic, {
+      ...h.deps,
+      onDigest: async () => {
+        throw new Error("arquivo fora");
+      },
+    });
+    await agent.ingest();
+    await agent.digest();
+    expect(h.sent).toHaveLength(1);
+    expect(agent.store.pendingItems(10)).toHaveLength(0);
+    expect(h.logs.some((l) => l.includes("onDigest falhou"))).toBe(true);
+  });
+
+  test("dry-run não chama onDigest", async () => {
+    let called = false;
+    const agent = createAgent(topic, {
+      ...h.deps,
+      onDigest: async () => {
+        called = true;
+      },
+    });
+    await agent.ingest();
+    await agent.digest({ dryRun: true });
+    expect(called).toBe(false);
+  });
+
   test("respeita digestMaxItems", async () => {
     const agent = createAgent(topic, {
       ...h.deps,
