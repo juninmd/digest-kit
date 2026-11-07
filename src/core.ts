@@ -1,6 +1,11 @@
 // Runtime-agnostic entry: no bun:* imports, safe to load from Node.
 export { createChat, redact } from "./ai.ts";
 export { ModelChainError, type ModelChainOptions, runModelChain } from "./chain.ts";
+export {
+  type ExtractArticleOptions,
+  type ExtractedArticle,
+  extractArticleFromHtml,
+} from "./extract.ts";
 export { extractJsonObject } from "./json.ts";
 export { isSafeExternalUrl } from "./net.ts";
 export {

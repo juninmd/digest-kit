@@ -9,4 +9,7 @@ Documentações, repositórios e referências citados no projeto:
 - [bun:sqlite Documentation](https://bun.sh/docs/api/sqlite)
 - [node-cron Repository](https://github.com/node-cron/node-cron)
 - [rss-parser Repository](https://github.com/rbren/rss-parser)
+- [Mozilla Readability](https://github.com/mozilla/readability)
+- [LinkeDOM DOM Parser](https://github.com/WebReflection/linkedom)
+- [Turndown HTML to Markdown](https://github.com/mixmark-io/turndown)
 - [TypeScript Conditional Exports](https://www.typescriptlang.org/docs/handbook/modules/reference.html#packagejson-exports)
