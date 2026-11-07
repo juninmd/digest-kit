@@ -36,6 +36,7 @@ O `@juninmd/digest-kit` é uma biblioteca para quem mantém agentes de resumo di
 - Chat com LLM por provedor: `ollama`, `openai`, `anthropic`, `google` ou `compatible` (gateway OpenAI-compatível).
 - Entrega no Telegram com quebra de mensagem longa; Markdown recusado (400) é reenviado como texto simples; se nenhum chat recebe, os itens continuam pendentes. Sem token, imprime no console.
 - Hook `onDigest` (em `createAgent`/`runAgent`) para arquivar cada digest enviado em outro destino.
+- Busca vetorial e deduplicação semântica local via `sqlite-vec` (`createVectorStore` / `loadSqliteVec` com tabelas virtuais `vec0`).
 - Agendamento por cron (`node-cron`) para ingestão e digest.
 - Primitivas puras em `@juninmd/digest-kit/core`, sem `bun:*`: `extractArticleFromHtml`, `extractJsonObject`, `isSafeExternalUrl`, `withRetry`, `runModelChain`, filtros de prosa e `redact`.
 

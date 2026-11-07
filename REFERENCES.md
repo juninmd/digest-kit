@@ -12,4 +12,5 @@ Documentações, repositórios e referências citados no projeto:
 - [Mozilla Readability](https://github.com/mozilla/readability)
 - [LinkeDOM DOM Parser](https://github.com/WebReflection/linkedom)
 - [Turndown HTML to Markdown](https://github.com/mixmark-io/turndown)
+- [sqlite-vec Vector Extension](https://github.com/asg017/sqlite-vec)
 - [TypeScript Conditional Exports](https://www.typescriptlang.org/docs/handbook/modules/reference.html#packagejson-exports)
