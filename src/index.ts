@@ -23,6 +23,13 @@ export { createFetchFeed } from "./feeds.ts";
 export { createStore } from "./store.ts";
 export { createSend } from "./telegram.ts";
 export { clean, formatItems, idFor, splitMessage } from "./text.ts";
+export {
+  createVectorStore,
+  loadSqliteVec,
+  type VectorMatch,
+  type VectorStore,
+  type VectorStoreOptions,
+} from "./vector.ts";
 export type {
   Agent,
   AgentDeps,

@@ -38,6 +38,7 @@
     "linkedom": "^0.18.15",
     "node-cron": "^4.6.0",
     "rss-parser": "^3.13.0",
+    "sqlite-vec": "^0.1.9",
     "turndown": "^7.2.4"
   },
   "devDependencies": {
