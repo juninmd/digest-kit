@@ -4,6 +4,9 @@ export { createChat, redact } from "./ai.ts";
 export { loadConfig } from "./config.ts";
 export {
   backoffDelay,
+  type ExtractArticleOptions,
+  type ExtractedArticle,
+  extractArticleFromHtml,
   extractJsonObject,
   hasEnglishSentence,
   hasModelArtifacts,

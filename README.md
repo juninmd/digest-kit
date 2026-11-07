@@ -37,7 +37,7 @@ O `@juninmd/digest-kit` é uma biblioteca para quem mantém agentes de resumo di
 - Entrega no Telegram com quebra de mensagem longa; Markdown recusado (400) é reenviado como texto simples; se nenhum chat recebe, os itens continuam pendentes. Sem token, imprime no console.
 - Hook `onDigest` (em `createAgent`/`runAgent`) para arquivar cada digest enviado em outro destino.
 - Agendamento por cron (`node-cron`) para ingestão e digest.
-- Primitivas puras em `@juninmd/digest-kit/core`, sem `bun:*`: `extractJsonObject`, `isSafeExternalUrl`, `withRetry`, `runModelChain`, filtros de prosa e `redact`.
+- Primitivas puras em `@juninmd/digest-kit/core`, sem `bun:*`: `extractArticleFromHtml`, `extractJsonObject`, `isSafeExternalUrl`, `withRetry`, `runModelChain`, filtros de prosa e `redact`.
 
 ## 🏗️ Arquitetura
 
@@ -205,6 +205,7 @@ Para microsserviços ou aplicações Node.js que precisam de primitivas puras se
 
 ```ts
 import {
+  extractArticleFromHtml,
   extractJsonObject,
   isSafeExternalUrl,
   isPollutedProse,
@@ -212,6 +213,12 @@ import {
   withRetry,
   redact,
 } from "@juninmd/digest-kit/core";
+
+// Extrai corpo limpo (Fit Markdown) e metadados de página HTML sem ruído/boilerplate
+const article = extractArticleFromHtml(rawHtml);
+if (article) {
+  console.log(article.title, article.contentMarkdown);
+}
 
 // Extrai JSON válido gerado por LLMs envolvido em prosa/cercas markdown
 const data = extractJsonObject(llmResponse);
