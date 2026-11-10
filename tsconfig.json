@@ -13,5 +13,5 @@
     "types": ["bun-types"]
   },
   // O exemplo tem tsconfig próprio (resolve o pacote por "paths").
-  "include": ["src", "tests"]
+  "include": ["src", "tests", "bench"]
 }
