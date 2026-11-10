@@ -44,7 +44,7 @@ describe("createChat", () => {
     expect(calls[0]?.url).toBe("http://localhost:11434/v1/chat/completions");
     expect(calls[0]?.headers.authorization).toBe("Bearer ollama");
     expect(calls[0]?.body).toEqual({
-      model: "llama3.2",
+      model: config({}).ollamaModel,
       messages: [
         { role: "system", content: "sys" },
         { role: "user", content: "user" },
