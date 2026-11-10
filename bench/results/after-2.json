@@ -1,0 +1,238 @@
+{
+  "runtime": "bun 1.4.4",
+  "platform": "linux x64",
+  "cpu": "Intel(R) Xeon(R) Processor @ 2.10GHz",
+  "cores": 4,
+  "memoryGb": 16,
+  "options": {
+    "samples": 25,
+    "sampleMs": 20,
+    "warmupMs": 150
+  },
+  "results": [
+    {
+      "name": "text.clean: 280-char plain snippet",
+      "medianNs": 706.6370544433594,
+      "minNs": 605.6178894042969,
+      "spread": 0.15728106005925352,
+      "samples": 25,
+      "callsPerSample": 32768
+    },
+    {
+      "name": "text.clean: 2 KB HTML body",
+      "medianNs": 1255.6796569824219,
+      "minNs": 1115.4559936523438,
+      "spread": 0.07714469053952633,
+      "samples": 25,
+      "callsPerSample": 32768
+    },
+    {
+      "name": "text.clean: 64 KB HTML body",
+      "medianNs": 768.1857604980469,
+      "minNs": 659.20068359375,
+      "spread": 0.14690783707283886,
+      "samples": 25,
+      "callsPerSample": 32768
+    },
+    {
+      "name": "text.clean: 64 KB plain text (full-content feed)",
+      "medianNs": 569.035400390625,
+      "minNs": 481.6690673828125,
+      "spread": 0.15540107149185525,
+      "samples": 25,
+      "callsPerSample": 65536
+    },
+    {
+      "name": "text.idFor: one link",
+      "medianNs": 485.6889190673828,
+      "minNs": 419.1121826171875,
+      "spread": 0.09222098485430885,
+      "samples": 25,
+      "callsPerSample": 65536
+    },
+    {
+      "name": "text.formatItems: 12 items",
+      "medianNs": 1913.5330810546875,
+      "minNs": 1632.88037109375,
+      "spread": 0.051846419510294395,
+      "samples": 25,
+      "callsPerSample": 8192
+    },
+    {
+      "name": "text.splitMessage: 16 KB digest",
+      "medianNs": 7236.99072265625,
+      "minNs": 6696.10791015625,
+      "spread": 0.18819295696068855,
+      "samples": 25,
+      "callsPerSample": 2048
+    },
+    {
+      "name": "json.extractJsonObject: fenced JSON in prose",
+      "medianNs": 1471.3416137695312,
+      "minNs": 1296.343505859375,
+      "spread": 0.08919571396232737,
+      "samples": 25,
+      "callsPerSample": 16384
+    },
+    {
+      "name": "json.extractJsonObject: fenced JSON + 12 braces in trailing prose",
+      "medianNs": 4356.090087890625,
+      "minNs": 3801.7821044921875,
+      "spread": 0.10351272758454581,
+      "samples": 25,
+      "callsPerSample": 8192
+    },
+    {
+      "name": "json.extractJsonObject: no JSON, 40 stray braces",
+      "medianNs": 26094.779296875,
+      "minNs": 22487.82421875,
+      "spread": 0.1452483872829268,
+      "samples": 25,
+      "callsPerSample": 512
+    },
+    {
+      "name": "prose.hasEnglishSentence: 4 KB pt-BR",
+      "medianNs": 29264.21484375,
+      "minNs": 27669.99609375,
+      "spread": 0.09163582228134591,
+      "samples": 25,
+      "callsPerSample": 1024
+    },
+    {
+      "name": "prose.looksGarbled: 4 KB pt-BR",
+      "medianNs": 1592.2730712890625,
+      "minNs": 1437.4957275390625,
+      "spread": 0.06857131927020912,
+      "samples": 25,
+      "callsPerSample": 16384
+    },
+    {
+      "name": "prose.isPollutedProse: 4 KB pt-BR",
+      "medianNs": 9566.01611328125,
+      "minNs": 8926.8623046875,
+      "spread": 0.08038613865479712,
+      "samples": 25,
+      "callsPerSample": 2048
+    },
+    {
+      "name": "net.isSafeExternalUrl: 8 URLs",
+      "medianNs": 3481.6048583984375,
+      "minNs": 3241.54345703125,
+      "spread": 0.05100330780773826,
+      "samples": 25,
+      "callsPerSample": 8192
+    },
+    {
+      "name": "extract.extractArticleFromHtml: 30 KB article page",
+      "medianNs": 13510125,
+      "minNs": 10205798,
+      "spread": 0.7578049795986344,
+      "samples": 25,
+      "callsPerSample": 1
+    },
+    {
+      "name": "extract.extractArticleFromHtml: 3 KB fragment",
+      "medianNs": 1303460.1875,
+      "minNs": 999437.8125,
+      "spread": 0.5124431063606997,
+      "samples": 25,
+      "callsPerSample": 16
+    },
+    {
+      "name": "feeds.parse (rss-parser): 50-item RSS, 190 KB",
+      "medianNs": 3139095.75,
+      "minNs": 2899925.875,
+      "spread": 0.13287990657819215,
+      "samples": 25,
+      "callsPerSample": 8
+    },
+    {
+      "name": "agent.ingest: 20 feeds x 50 new items (:memory:)",
+      "medianNs": 5839078,
+      "minNs": 5124095,
+      "spread": 0.1728593110076625,
+      "samples": 25,
+      "callsPerSample": 1
+    },
+    {
+      "name": "agent.ingest: 20 feeds x 50 new items (file DB, WAL)",
+      "medianNs": 27477687,
+      "minNs": 20054697,
+      "spread": 0.2870061079012946,
+      "samples": 25,
+      "callsPerSample": 1
+    },
+    {
+      "name": "agent.ingest: 20 feeds x 50 items already stored (:memory:)",
+      "medianNs": 4847982.5,
+      "minNs": 4537675.75,
+      "spread": 0.09719156370717097,
+      "samples": 25,
+      "callsPerSample": 8
+    },
+    {
+      "name": "agent.ingest: 20 feeds x 50 items already stored (file DB, WAL)",
+      "medianNs": 4883050.625,
+      "minNs": 3809968.625,
+      "spread": 0.1046202546794198,
+      "samples": 25,
+      "callsPerSample": 8
+    },
+    {
+      "name": "store.pendingItems(12): 50k rows, 1k pending",
+      "medianNs": 20095.1767578125,
+      "minNs": 17462.9931640625,
+      "spread": 0.1870764328018894,
+      "samples": 25,
+      "callsPerSample": 1024
+    },
+    {
+      "name": "store.markDigested: 12 ids (100k rows, :memory:)",
+      "medianNs": 14344,
+      "minNs": 13212,
+      "spread": 0.23591745677635248,
+      "samples": 25,
+      "callsPerSample": 1
+    },
+    {
+      "name": "vector: store 500 x 384d embeddings (:memory:)",
+      "medianNs": 6425308,
+      "minNs": 5452367,
+      "spread": 0.08426584375410485,
+      "samples": 25,
+      "callsPerSample": 1
+    },
+    {
+      "name": "vector: store 200 x 384d embeddings (file DB, WAL)",
+      "medianNs": 8010108,
+      "minNs": 7133530,
+      "spread": 0.08775936604100719,
+      "samples": 25,
+      "callsPerSample": 1
+    },
+    {
+      "name": "vector.upsert: replace one 384d row (1k rows, :memory:)",
+      "medianNs": 14454.3505859375,
+      "minNs": 14188.3095703125,
+      "spread": 0.023095541560496053,
+      "samples": 25,
+      "callsPerSample": 1024
+    },
+    {
+      "name": "vector.search k=5: 5k x 384d",
+      "medianNs": 1990612,
+      "minNs": 1755040.125,
+      "spread": 0.12086854444763721,
+      "samples": 25,
+      "callsPerSample": 16
+    },
+    {
+      "name": "vector.hasSimilar: 5k x 384d",
+      "medianNs": 2122294.25,
+      "minNs": 1774014.0625,
+      "spread": 0.20293501360614816,
+      "samples": 25,
+      "callsPerSample": 16
+    }
+  ]
+}

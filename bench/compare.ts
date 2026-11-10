@@ -41,8 +41,14 @@ function median(values: number[]): number {
   return sorted.length % 2 ? sorted[middle]! : (sorted[middle - 1]! + sorted[middle]!) / 2;
 }
 
-/** Case name -> median across runs, in the order the cases first appear. */
-function load(paths: string[]): Map<string, number> {
+interface Summary {
+  median: number;
+  min: number;
+  max: number;
+}
+
+/** Case name -> summary of its per-run medians, in the order the cases first appear. */
+function load(paths: string[]): Map<string, Summary> {
   const perCase = new Map<string, number[]>();
   for (const path of paths) {
     const report = JSON.parse(readFileSync(path, "utf8")) as Report;
@@ -52,7 +58,12 @@ function load(paths: string[]): Map<string, number> {
       perCase.set(result.name, values);
     }
   }
-  return new Map([...perCase].map(([name, values]) => [name, median(values)]));
+  return new Map(
+    [...perCase].map(([name, values]) => [
+      name,
+      { median: median(values), min: Math.min(...values), max: Math.max(...values) },
+    ]),
+  );
 }
 
 const beforeByName = load(before);
@@ -61,21 +72,24 @@ const afterByName = load(after);
 /** Below this ratio a difference is inside the run-to-run noise of a shared VM. */
 const NOISE = 1.25;
 
-function verdict(ratio: number): string {
-  if (ratio >= NOISE) return `**${ratio.toFixed(2)}x faster**`;
-  if (ratio <= 1 / NOISE) return `**${(1 / ratio).toFixed(2)}x slower**`;
+/**
+ * A change counts only when the medians differ by more than NOISE and, with
+ * several runs per side, no "before" run overlaps any "after" run.
+ */
+function verdict(b: Summary, a: Summary): string {
+  const ratio = b.median / a.median;
+  if (ratio >= NOISE && a.max < b.min) return `**${ratio.toFixed(2)}x faster**`;
+  if (ratio <= 1 / NOISE && a.min > b.max) return `**${(1 / ratio).toFixed(2)}x slower**`;
   return "same (within noise)";
 }
 
 console.log("| Case | Before | After | Change |");
 console.log("|---|---:|---:|---|");
-for (const [name, beforeNs] of beforeByName) {
-  const afterNs = afterByName.get(name);
-  if (afterNs === undefined) continue;
-  console.log(
-    `| ${name} | ${formatDuration(beforeNs)} | ${formatDuration(afterNs)} | ${verdict(beforeNs / afterNs)} |`,
-  );
+for (const [name, b] of beforeByName) {
+  const a = afterByName.get(name);
+  if (!a) continue;
+  console.log(`| ${name} | ${formatDuration(b.median)} | ${formatDuration(a.median)} | ${verdict(b, a)} |`);
 }
-for (const [name, afterNs] of afterByName) {
-  if (!beforeByName.has(name)) console.log(`| ${name} | — | ${formatDuration(afterNs)} | new case |`);
+for (const [name, a] of afterByName) {
+  if (!beforeByName.has(name)) console.log(`| ${name} | — | ${formatDuration(a.median)} | new case |`);
 }
