@@ -182,7 +182,7 @@ function vectorCtx(path: string, rows: number): VectorCtx {
 
 // ------------------------------------------------------------------- cases
 
-// biome-ignore lint/suspicious/noExplicitAny: each case owns its context type.
+// `any`: each case owns its own context type.
 const cases: BenchCase<any>[] = [
   // text
   { name: "text.clean: 280-char plain snippet", run: () => clean(snippets()) },
@@ -310,8 +310,26 @@ const cases: BenchCase<any>[] = [
     teardown: (store: Store) => store.close(),
   },
   {
-    name: "store.markDigested: 12 ids (file DB, WAL)",
-    setup: () => ({ store: createStore(nextDbPath()), seq: 0, ids: [] as string[] }),
+    name: "store.markDigested: 12 ids (100k rows, :memory:)",
+    setup: () => {
+      const store = createStore(":memory:");
+      const ids: string[] = [];
+      for (let i = 0; i < 100_000; i++) {
+        const id = `sent-${i}`;
+        ids.push(id);
+        store.insertItem({
+          id,
+          title: `Título ${i}`,
+          link: `https://example.com/${id}`,
+          source: "Feed",
+          summary: snippet,
+          published: null,
+          fetched_at: `2026-07-${String(1 + (i % 28)).padStart(2, "0")}T10:00:00.000Z`,
+        });
+      }
+      store.markDigested(ids);
+      return { store, seq: 0, ids: [] as string[] };
+    },
     beforeEach: (ctx: { store: Store; seq: number; ids: string[] }) => {
       ctx.ids = [];
       for (let i = 0; i < 12; i++) {
