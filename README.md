@@ -26,35 +26,53 @@ O `@juninmd/digest-kit` é uma biblioteca para quem mantém agentes de resumo di
 - [Configuração](#-configuração-variáveis-de-ambiente)
 - [Garantias e resiliência](#-garantias-e-resiliência)
 - [Subpath core](#-juninmddigest-kitcore-nodejs--bun)
+- [Busca vetorial](#-busca-vetorial-sqlite-vec)
+- [Desempenho](#-desempenho)
 - [Desenvolvimento e gates de CI](#-desenvolvimento)
 
 ## ✨ Funcionalidades
 
-- `defineTopic` / `runAgent` / `createAgent`: definição do tópico e CLI padrão do agente (`--ingest`, `--digest`, `--loop`, `--dry-run`, `--help`).
-- Ingestão de feeds RSS/Atom com falha isolada por feed e limite de itens (`MAX_ITEMS_PER_FEED`).
-- Persistência e deduplicação em SQLite (`bun:sqlite`), com id derivado do hash do link.
+- `defineTopic` / `runAgent` / `createAgent`: definição do tópico e CLI padrão do agente (`--ingest`, `--digest`, `--loop`, `--status`, `--dry-run`, `--help`).
+- Ingestão de feeds RSS/Atom com falha isolada por feed, limite de itens (`MAX_ITEMS_PER_FEED`) e de leituras simultâneas (`FEED_CONCURRENCY`).
+- Persistência e deduplicação em SQLite (`bun:sqlite`), com id derivado do hash do link; cada feed é gravado em uma transação.
+- `--status` / `agent.status()` / `store.stats()`: pendentes, enviados e última coleta, sem tocar em feed, IA ou Telegram.
 - Chat com LLM por provedor: `ollama`, `openai`, `anthropic`, `google` ou `compatible` (gateway OpenAI-compatível).
 - Entrega no Telegram com quebra de mensagem longa; Markdown recusado (400) é reenviado como texto simples; se nenhum chat recebe, os itens continuam pendentes. Sem token, imprime no console.
 - Hook `onDigest` (em `createAgent`/`runAgent`) para arquivar cada digest enviado em outro destino.
-- Busca vetorial e deduplicação semântica local via `sqlite-vec` (`createVectorStore` / `loadSqliteVec` com tabelas virtuais `vec0`).
+- Busca vetorial e deduplicação semântica local via `sqlite-vec` (`createVectorStore` / `loadSqliteVec` com tabelas virtuais `vec0`), com métrica `l2`, `cosine` ou `l1` e gravação em lote (`upsertMany`).
 - Agendamento por cron (`node-cron`) para ingestão e digest.
-- Primitivas puras em `@juninmd/digest-kit/core`, sem `bun:*`: `extractArticleFromHtml`, `extractJsonObject`, `isSafeExternalUrl`, `withRetry`, `runModelChain`, filtros de prosa e `redact`.
+- Primitivas puras em `@juninmd/digest-kit/core`, sem `bun:*`: `extractArticleFromHtml`, `extractJsonObject`, `isSafeExternalUrl`, `withRetry`, `runModelChain`, `mapSettled`, filtros de prosa e `redact`.
 
 ## 🏗️ Arquitetura
 
 ```mermaid
 flowchart LR
-  T["topic.ts (defineTopic)"] --> A["agent.ts (createAgent / runAgent)"]
-  A --> F["feeds.ts (RSS/Atom)"]
-  F --> S[("store.ts (SQLite)")]
+  T["topic.ts (defineTopic)"] --> A["agent/ (createAgent / runAgent)"]
+  A --> F["sources/feeds.ts (RSS/Atom)"]
+  F --> S[("storage/store.ts (SQLite)")]
   S --> A
-  A --> AI["ai.ts (createChat)"]
+  A --> AI["ai/chat.ts (createChat)"]
   AI --> A
-  A --> TG["telegram.ts (createSend)"]
+  A --> TG["delivery/telegram.ts (createSend)"]
   A -. cron .-> C["node-cron"]
 ```
 
-Os módulos usados também no Node (`ai.ts`, `chain.ts`, `json.ts`, `net.ts`, `prose.ts`, `retry.ts`, `text.ts`) são reexportados por `src/core.ts`; `store.ts` depende de `bun:sqlite` e fica fora dele.
+O `src/` segue as etapas do pipeline:
+
+```text
+src/
+├── index.ts        entrada Bun: tudo
+├── core.ts         entrada ./core: só o que roda em Node
+├── types.ts        contratos (Topic, Config, Store, Agent...)
+├── agent/          orquestração: agent.ts, cli.ts, args.ts, config.ts
+├── sources/        entrada de conteúdo: feeds.ts, extract.ts
+├── storage/        bun:sqlite: store.ts, vector.ts
+├── ai/             chat.ts, chain.ts, prose.ts
+├── delivery/       telegram.ts
+└── util/           text, json, net, retry, redact, concurrency
+```
+
+`storage/` é o único diretório que importa `bun:sqlite`, e nada alcançável a partir de `src/core.ts` pode importar `bun:*` nem `storage/`. `tests/architecture.test.ts` percorre o grafo de imports e falha se isso for quebrado; o mesmo teste congela a lista de exports da 0.4.0, que só pode crescer.
 
 ---
 
@@ -130,7 +148,8 @@ Seu agente já conta com comandos prontos:
 | `bun run src/index.ts` | Ciclo único completo: ingestão de feeds + geração do digest |
 | `bun run src/index.ts --ingest` | Apenas coleta novos itens dos feeds e grava no banco |
 | `bun run src/index.ts --digest` | Apenas resume itens pendentes e transmite a mensagem |
-| `bun run src/index.ts --loop` | Fica ativo em segundo plano executando os agendamentos cron |
+| `bun run src/index.ts --loop` | Fica ativo em segundo plano executando os agendamentos cron; um disparo é ignorado se a execução anterior ainda não terminou |
+| `bun run src/index.ts --status` | Mostra a fila (pendentes, enviados, total, última coleta). Não busca feeds, não chama a IA e não envia nada |
 | `bun run src/index.ts --digest --dry-run` | Monta o digest e imprime, sem enviar e sem marcar itens (vale também sem modo) |
 | `bun run src/index.ts --help` | Mostra o uso; argumento desconhecido sai com código 2 sem rodar nada |
 
@@ -163,20 +182,32 @@ DB_PATH=:memory: bun run example -- --digest
 [digest] nada novo para resumir
 ```
 
-- Sem `TELEGRAM_BOT_TOKEN`/`TELEGRAM_CHAT_IDS`, o digest é impresso no console com o prefixo `[telegram] não configurado — imprimindo no console` (comportamento de `src/telegram.ts`).
+Com o banco em arquivo, depois de um `--ingest` em outro processo:
+
+```bash
+DB_PATH=./data/store.db bun run example -- --status
+```
+
+```text
+[status] meu-agente: 30 pendentes, 0 enviados, 30 no total
+[status] última coleta: 2026-11-10T03:24:56.108Z
+```
+
+- Sem `TELEGRAM_BOT_TOKEN`/`TELEGRAM_CHAT_IDS`, o digest é impresso no console com o prefixo `[telegram] não configurado — imprimindo no console` (comportamento de `src/delivery/telegram.ts`).
 - O ciclo completo (`bun run example`, sem flag) chama o provedor de IA e **não foi executado** aqui: saída não verificada.
 
 ---
 
 ## ⚙️ Configuração (Variáveis de Ambiente)
 
-O Bun carrega arquivos `.env` automaticamente. Todas as variáveis possuem padrões seguros:
+O Bun carrega arquivos `.env` automaticamente. Todas as variáveis possuem padrões seguros. Contagens (`MAX_ITEMS_PER_FEED`, `DIGEST_MAX_ITEMS`, `FEED_CONCURRENCY`) precisam ser inteiros >= 1; valor inválido volta ao padrão. Um `AI_PROVIDER` desconhecido é recusado com erro em vez de cair no Ollama.
 
 | Variável | Padrão | Descrição |
 |---|---|---|
 | `AI_PROVIDER` | `ollama` | Provedor: `ollama`, `openai`, `anthropic`, `google` ou `compatible` |
 | `AI_BASE_URL` / `AI_API_KEY` / `AI_MODEL` | — | Usados por `AI_PROVIDER=compatible` (LiteLLM, vLLM, Groq, OpenRouter) |
 | `AI_TEMPERATURE` | `0.4` | Temperatura do modelo de IA |
+| `AI_TIMEOUT_MS` | `300000` | Tempo máximo de espera pela resposta do provedor; `0` desliga. Estourou, o digest sai com a lista bruta |
 | `TELEGRAM_BOT_TOKEN` | — | Token do bot. Se omitido, o digest é impresso no console |
 | `TELEGRAM_CHAT_IDS` | — | IDs de chats/canais separados por vírgula (`TELEGRAM_CHAT_ID` também é aceito) |
 | `CRON_INGESTION` | `*/30 * * * *` | Expressão cron para ingestão dos feeds |
@@ -185,14 +216,18 @@ O Bun carrega arquivos `.env` automaticamente. Todas as variáveis possuem padr�
 | `MAX_ITEMS_PER_FEED` | `20` | Limite de itens coletados por feed por execução |
 | `DIGEST_MAX_ITEMS` | `12` | Quantidade máxima de itens resumidos por ciclo |
 | `FEED_TIMEOUT_MS` | `12000` | Timeout de rede para requisições de feeds RSS |
+| `FEED_CONCURRENCY` | `8` | Quantos feeds são lidos ao mesmo tempo |
 | `TZ_DISPLAY` / `LOCALE` | `America/Sao_Paulo` / `pt-BR` | Fuso horário e formatação de datas no cabeçalho |
 
 ---
 
 ## 🛡️ Garantias e Resiliência
 
-- **Deduplicação garantida:** Chave primária baseada em hash SHA-256 do link evita repetições.
-- **Isolamento de falhas:** Feeds fora do ar geram avisos em log sem interromper os demais (`Promise.allSettled`).
+- **Deduplicação garantida:** Chave primária baseada em hash SHA-1 do link evita repetições.
+- **Isolamento de falhas:** Feeds fora do ar geram avisos em log sem interromper os demais (`mapSettled`, com no máximo `FEED_CONCURRENCY` leituras simultâneas).
+- **Gravação em lote:** Os itens de cada feed entram em uma transação: um commit por feed, não um por item.
+- **Sem espera infinita:** Chamadas ao provedor de IA (`AI_TIMEOUT_MS`) e ao Telegram (30 s) têm limite de tempo.
+- **Sem digest em dobro no `--loop`:** Um disparo do cron é ignorado enquanto a execução anterior daquele ciclo ainda roda.
 - **Reserva sem IA:** Se a IA falhar ou retornar em branco, o agente entrega a lista bruta formatada para não perder o dia.
 - **Entrega atômica:** Falhas de envio ao Telegram não marcam os itens como digeridos, reenviando-os no próximo ciclo.
 - **Quebra de mensagens:** Textos que ultrapassam o limite do Telegram são fatiados em quebras de linha naturais.
@@ -210,6 +245,7 @@ import {
   extractJsonObject,
   isSafeExternalUrl,
   isPollutedProse,
+  mapSettled,
   runModelChain,
   withRetry,
   redact,
@@ -237,7 +273,50 @@ const text = await runModelChain(
   ["gpt-4o-mini", "gemini-2.5-flash"],
   async (model) => callModel(model, prompt),
 );
+
+// Promise.allSettled com limite de chamadas simultâneas (aqui, 4 por vez)
+const pages = await mapSettled(urls, (url) => fetch(url).then((r) => r.text()), 4);
 ```
+
+---
+
+## 🧭 Busca vetorial (`sqlite-vec`)
+
+```ts
+import { Database } from "bun:sqlite";
+import { createVectorStore } from "@juninmd/digest-kit";
+
+const db = new Database("./data/vectors.db");
+const vectors = createVectorStore(db, {
+  dimensions: 384,
+  distanceMetric: "cosine", // "l2" (padrão), "cosine" ou "l1"
+});
+
+// Lote inteiro em uma transação: ou entra tudo, ou nada
+vectors.upsertMany([
+  { id: "item-1", embedding: embeddingA },
+  { id: "item-2", embedding: embeddingB },
+]);
+
+vectors.search(queryEmbedding, 5); // [{ id, distance }, ...] do mais próximo ao mais distante
+vectors.hasSimilar(queryEmbedding, 0.1); // já existe algo a até 0.1 de distância?
+```
+
+A métrica é fixada na criação da tabela. Abrir uma tabela existente pedindo outra métrica lança erro, em vez de devolver distâncias numa escala diferente da esperada.
+
+---
+
+## 🚄 Desempenho
+
+`bun run bench` roda um benchmark reprodutível (entradas determinísticas, sem rede) dos caminhos quentes. O antes/depois da 0.5.0, com método, máquina e ressalvas, está em [`docs/BENCHMARK.md`](docs/BENCHMARK.md). Alguns números de lá (mediana de três execuções por lado, VM compartilhada):
+
+| Caso | 0.4.0 | 0.5.0 |
+|---|---:|---:|
+| Ingestão de 20 feeds x 50 itens novos, banco em arquivo | 214,72 ms | 22,52 ms |
+| Mesma ingestão, itens já gravados | 13,62 ms | 4,88 ms |
+| `clean` de um resumo de 64 KB | 248,73 µs | 0,57 µs |
+| Gravar 200 embeddings de 384 dimensões, banco em arquivo | 70,06 ms | 7,16 ms |
+| Chamadas `fsync` na ingestão acima | 1009 | 20 |
 
 ---
 
@@ -245,9 +324,10 @@ const text = await runModelChain(
 
 ```bash
 bun install --frozen-lockfile
-bun test          # Suite completa de 68 testes unitários
+bun test          # Suite completa de 159 testes, sem rede
 bun run build     # Compila dist/core.js e dist/core.d.ts para Node.js
 bun run typecheck # Checagem estrita de tipos TypeScript
+bun run bench     # Benchmark dos caminhos quentes (ver docs/BENCHMARK.md)
 ```
 
 O repositório não define script de lint próprio. Para rodar o exemplo localmente: `bun run example`.

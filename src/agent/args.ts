@@ -8,7 +8,7 @@ Modos (um só):
   --ingest    só coleta os feeds
   --digest    só monta e envia o digest
   --loop      agente contínuo (crons de ingestão e digest)
-  --status    mostra a fila (pendentes, enviados, última coleta) sem rede nem escrita
+  --status    mostra a fila (pendentes, enviados, última coleta); não coleta nem envia
   --help, -h  mostra este texto
 
 Flags:

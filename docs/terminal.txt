@@ -1,6 +1,5 @@
 # Saida real de examples/meu-agente (script "example" do package.json), sem credenciais.
-# Ambiente: DB_PATH=:memory: e sem TELEGRAM_BOT_TOKEN. O runAgent nao tem --help:
-# qualquer argumento fora de --ingest/--digest/--loop executa um ciclo completo.
+# Ambiente: DB_PATH=:memory: e sem TELEGRAM_BOT_TOKEN.
 # O ciclo completo (sem flag) nao foi executado: exige um provedor de IA acessivel.
 # Neste ambiente o feed "Hacker News" recusou a conexao (ECONNREFUSED); a linha
 # abaixo mostra o isolamento de falha por feed, nao um erro do kit.
@@ -15,3 +14,39 @@ $ bun run examples/meu-agente/src/index.ts --ingest
 $ DB_PATH=:memory: bun run example -- --digest
 $ bun run examples/meu-agente/src/index.ts --digest
 [digest] nada novo para resumir
+
+# ---------------------------------------------------------------------------
+# Versao 0.5.0, 2026-11-10. Banco em arquivo (DB_PATH apontando para um .db),
+# um processo por comando, sem TELEGRAM_BOT_TOKEN e sem provedor de IA no ar.
+# Neste ambiente os dois feeds responderam.
+
+$ bun run example -- --ingest
+  + 20 de Hacker News
+  + 10 de GitHub Blog
+[ingest] 30 itens novos
+
+$ bun run example -- --status
+[status] meu-agente: 30 pendentes, 0 enviados, 30 no total
+[status] última coleta: 2026-11-10T03:24:56.108Z
+
+# Segunda coleta logo em seguida: tudo ja estava gravado.
+$ bun run example -- --ingest
+[ingest] 0 itens novos
+
+# Sem Ollama em localhost a IA falha e o digest cai para a lista bruta.
+# Com --dry-run nada e enviado nem marcado (saida cortada apos o cabecalho).
+$ bun run example -- --digest --dry-run
+[digest] IA falhou (TypeError: ECONNREFUSED: Unable to connect. Is the computer able to access the url?) — enviando lista bruta
+[digest] dry-run: nada enviado, itens continuam pendentes
+
+*📰 Meu Agente — 10/11/2026*
+...
+
+# Nome de provedor digitado errado: erro explicito em vez de cair no Ollama.
+$ AI_PROVIDER=opnai bun run example -- --digest --dry-run
+[digest] IA falhou (Error: AI_PROVIDER desconhecido: "opnai" (use ollama, openai, anthropic, google ou compatible)) — enviando lista bruta
+[digest] dry-run: nada enviado, itens continuam pendentes
+
+# Argumento desconhecido: imprime o uso e sai com codigo 2, sem abrir o banco.
+$ bun run example -- --bogus
+Argumento desconhecido: --bogus
