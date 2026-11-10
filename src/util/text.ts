@@ -72,16 +72,31 @@ function collapse(raw: string, limit: number): string {
       continue;
     }
 
-    let end = i + 1;
-    while (end < length && classify(raw.charCodeAt(end)) === TEXT) end++;
     // Espaço só entra entre dois trechos de texto: é isso que faz o papel do trim().
     if (pendingSpace && out.length > 0) out += " ";
     pendingSpace = false;
     const room = limit - out.length;
+    if (room <= 0) return out;
+
+    // Estende o trecho literal, sem ler além do que ainda cabe. Um espaço simples
+    // entre dois caracteres de texto já está na forma final, então fica dentro do
+    // trecho: prosa comum sai em uma fatia só, em vez de uma concatenação por palavra.
+    const stop = Math.min(length, i + room);
+    let end = i + 1;
+    while (end < stop) {
+      const next = raw.charCodeAt(end);
+      if (classify(next) === TEXT) {
+        end++;
+      } else if (next === 32 && end + 1 < length && classify(raw.charCodeAt(end + 1)) === TEXT) {
+        end += 2;
+      } else {
+        break;
+      }
+    }
     if (end - i >= room) {
       const cut = i + room;
       // Não corta um par substituto (emoji) ao meio: meio emoji vira U+FFFD ao gravar.
-      if (room > 0 && isHighSurrogate(raw.charCodeAt(cut - 1)) && isLowSurrogate(raw.charCodeAt(cut))) {
+      if (isHighSurrogate(raw.charCodeAt(cut - 1)) && isLowSurrogate(raw.charCodeAt(cut))) {
         return (out + raw.slice(i, cut - 1)).trimEnd();
       }
       return out + raw.slice(i, cut);

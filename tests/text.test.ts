@@ -34,9 +34,10 @@ describe("clean", () => {
       "&nbsp;", "&nbsp", "&nb<i>sp;", "<a title='&nbsp;'>x</a>", "&&nbsp;&", "a&amp;b", "&nbsp;&nbsp;a",
       "  a  ", "\n\ta\u00a0b\u2003c\ufeff", "a\u200bb", "<p>\n</p>", "<p>a</p><p>b</p>", "a<br/>b",
       "x<!-- c -->y", "1 < 2 e 3 > 2", "<p", "fim <", "a\u0085b", "a\u001fb",
+      "aaa bbb ccc", "a b c d e", "aaa  bbb", "aaa bbb ", " aaa bbb", "aaa <i>bbb</i> ccc", "aaa &nbsp;bbb", "aaa &b",
     ];
     for (const input of inputs) {
-      for (const max of [0, 1, 2, 3, 5, 500, 2.9, Number.POSITIVE_INFINITY, -1, -3, Number.NaN]) {
+      for (const max of [0, 1, 2, 3, 4, 5, 6, 7, 8, 500, 2.9, Number.POSITIVE_INFINITY, -1, -3, Number.NaN]) {
         expect([input, max, clean(input, max)]).toEqual([input, max, reference(input, max)]);
       }
     }

@@ -58,7 +58,7 @@ export function createStore(dbPath: string): SqliteStore {
   const markAll = db.prepare<unknown, [string]>(
     "UPDATE items SET digested = 1 WHERE id IN (SELECT value FROM json_each(?))",
   );
-  const stats = db.prepare<Omit<StoreStats, "digested">, []>(`
+  const queueStats = db.prepare<Omit<StoreStats, "digested">, []>(`
     SELECT COUNT(*) AS total,
            (SELECT COUNT(*) FROM items WHERE digested = 0) AS pending,
            MAX(fetched_at) AS lastFetchedAt
@@ -81,7 +81,7 @@ export function createStore(dbPath: string): SqliteStore {
     },
 
     stats(): StoreStats {
-      const row = stats.get() ?? { total: 0, pending: 0, lastFetchedAt: null };
+      const row = queueStats.get() ?? { total: 0, pending: 0, lastFetchedAt: null };
       return { ...row, digested: row.total - row.pending };
     },
 
