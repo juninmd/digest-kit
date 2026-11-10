@@ -20,6 +20,7 @@ export {
   isRateLimitError,
   isSafeExternalUrl,
   looksGarbled,
+  mapSettled,
   ModelChainError,
   redact,
   runModelChain,
@@ -31,7 +32,10 @@ export { createFetchFeed } from "./sources/feeds.ts";
 export { createStore } from "./storage/store.ts";
 export {
   createVectorStore,
+  type Embedding,
   loadSqliteVec,
+  type VectorDistanceMetric,
+  type VectorEntry,
   type VectorMatch,
   type VectorStore,
   type VectorStoreOptions,
@@ -50,6 +54,8 @@ export type {
   NewItem,
   ParsedFeedItem,
   SendFn,
+  SqliteStore,
   Store,
+  StoreStats,
   Topic,
 } from "./types.ts";

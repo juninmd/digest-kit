@@ -1,4 +1,4 @@
-export type Mode = "once" | "ingest" | "digest" | "loop" | "help";
+export type Mode = "once" | "ingest" | "digest" | "loop" | "status" | "help";
 export type Parsed = { mode: Mode; dryRun: boolean } | { error: string };
 
 export const USAGE = `Uso: bun run src/index.ts [modo] [--dry-run]
@@ -8,6 +8,7 @@ Modos (um só):
   --ingest    só coleta os feeds
   --digest    só monta e envia o digest
   --loop      agente contínuo (crons de ingestão e digest)
+  --status    mostra a fila (pendentes, enviados, última coleta) sem rede nem escrita
   --help, -h  mostra este texto
 
 Flags:
@@ -18,6 +19,7 @@ const MODES: Record<string, Mode> = {
   "--ingest": "ingest",
   "--digest": "digest",
   "--loop": "loop",
+  "--status": "status",
   "--help": "help",
   "-h": "help",
 };

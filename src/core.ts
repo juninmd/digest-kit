@@ -15,6 +15,7 @@ export {
   extractArticleFromHtml,
 } from "./sources/extract.ts";
 export type { AiProvider, ChatFn, Config } from "./types.ts";
+export { mapSettled } from "./util/concurrency.ts";
 export { extractJsonObject } from "./util/json.ts";
 export { isSafeExternalUrl } from "./util/net.ts";
 export { redact } from "./util/redact.ts";

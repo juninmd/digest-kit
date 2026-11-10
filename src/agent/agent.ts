@@ -1,16 +1,55 @@
 import cron from "node-cron";
 import { createChat } from "../ai/chat.ts";
-import { loadConfig } from "./config.ts";
+import { createSend } from "../delivery/telegram.ts";
 import { createFetchFeed } from "../sources/feeds.ts";
 import { createStore } from "../storage/store.ts";
-import { createSend } from "../delivery/telegram.ts";
+import type {
+  Agent,
+  AgentDeps,
+  Config,
+  DigestOptions,
+  Feed,
+  NewItem,
+  ParsedFeedItem,
+  Store,
+  Topic,
+} from "../types.ts";
+import { mapSettled, skipWhileRunning } from "../util/concurrency.ts";
 import { clean, formatItems, idFor } from "../util/text.ts";
-import type { Agent, AgentDeps, Config, DigestOptions, Topic } from "../types.ts";
+import { DEFAULT_FEED_CONCURRENCY, loadConfig } from "./config.ts";
 
 /** Só valida o que o consumidor escreve à mão e ajuda o TS a inferir. */
 export function defineTopic(topic: Topic): Topic {
   if (!topic.feeds.length) throw new Error(`topic "${topic.name}": nenhum feed configurado`);
   return topic;
+}
+
+/** Itens de um feed no formato do banco; sem link ou sem título não há o que guardar. */
+function toRows(items: ParsedFeedItem[], feed: Feed, fetchedAt: string): NewItem[] {
+  const rows: NewItem[] = [];
+  for (const item of items) {
+    const link = item.link ?? "";
+    const title = item.title?.trim() ?? "";
+    if (!link || !title) continue;
+    rows.push({
+      id: idFor(link),
+      title,
+      link,
+      source: feed.name,
+      summary: clean(item.contentSnippet ?? item.content) || null,
+      published: item.isoDate ?? item.pubDate ?? null,
+      fetched_at: fetchedAt,
+    });
+  }
+  return rows;
+}
+
+/** Um lote por feed quando o store sabe gravar em lote; senão, linha a linha. */
+function insertRows(store: Store, rows: NewItem[]): number {
+  if (store.insertItems) return store.insertItems(rows);
+  let added = 0;
+  for (const row of rows) if (store.insertItem(row)) added++;
+  return added;
 }
 
 export function createAgent(topic: Topic, deps: AgentDeps = {}): Agent {
@@ -24,27 +63,13 @@ export function createAgent(topic: Topic, deps: AgentDeps = {}): Agent {
 
   async function ingest(): Promise<number> {
     const fetchedAt = now().toISOString();
-    const results = await Promise.allSettled(
-      topic.feeds.map(async (feed) => {
+    const results = await mapSettled(
+      topic.feeds,
+      async (feed) => {
         const items = (await fetchFeed(feed)).slice(0, config.maxItemsPerFeed);
-        let added = 0;
-        for (const it of items) {
-          const link = it.link ?? "";
-          const title = it.title?.trim() ?? "";
-          if (!link || !title) continue;
-          const isNew = store.insertItem({
-            id: idFor(link),
-            title,
-            link,
-            source: feed.name,
-            summary: clean(it.contentSnippet ?? it.content) || null,
-            published: it.isoDate ?? it.pubDate ?? null,
-            fetched_at: fetchedAt,
-          });
-          if (isNew) added++;
-        }
-        return { name: feed.name, added };
-      }),
+        return { name: feed.name, added: insertRows(store, toRows(items, feed, fetchedAt)) };
+      },
+      config.feedConcurrency ?? DEFAULT_FEED_CONCURRENCY,
     );
 
     let total = 0;
@@ -110,13 +135,16 @@ export function createAgent(topic: Topic, deps: AgentDeps = {}): Agent {
     log(`[${topic.name}] agente ativo`);
     log(`  ingestão: ${config.cronIngestion}`);
     log(`  digest:   ${config.cronDigest}`);
+    // Um ciclo lento (feed travado, IA demorada) não pode ser atropelado pelo próximo
+    // disparo do cron: dois digests simultâneos enviariam os mesmos itens duas vezes.
+    const guarded = (name: string, task: () => Promise<unknown>) =>
+      skipWhileRunning(
+        () => task().catch((e) => log(`[${name}] erro: ${e}`)),
+        () => log(`[${name}] execução anterior ainda em andamento — disparo ignorado`),
+      );
     const tasks = [
-      cron.schedule(config.cronIngestion, () => {
-        ingest().catch((e) => log(`[ingest] erro: ${e}`));
-      }),
-      cron.schedule(config.cronDigest, () => {
-        digest().catch((e) => log(`[digest] erro: ${e}`));
-      }),
+      cron.schedule(config.cronIngestion, guarded("ingest", ingest)),
+      cron.schedule(config.cronDigest, guarded("digest", digest)),
     ];
     return () => {
       for (const t of tasks) t.stop();
@@ -131,6 +159,7 @@ export function createAgent(topic: Topic, deps: AgentDeps = {}): Agent {
     digest,
     runOnce,
     startLoop,
+    status: () => store.stats?.() ?? null,
     close: () => store.close(),
   };
 }
