@@ -5,7 +5,7 @@ import {
   hasPromptLeak,
   isPollutedProse,
   looksGarbled,
-} from "../src/prose.ts";
+} from "../src/ai/prose.ts";
 
 describe("prose guards", () => {
   test("flags instruction echoes and self-checks", () => {

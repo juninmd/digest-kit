@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { isSafeExternalUrl } from "../src/net.ts";
+import { isSafeExternalUrl } from "../src/util/net.ts";
 
 describe("isSafeExternalUrl", () => {
   it("accepts public HTTPS sources", () => {

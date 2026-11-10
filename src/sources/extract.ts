@@ -18,7 +18,11 @@ export interface ExtractArticleOptions {
   turndownOptions?: TurndownService.Options;
 }
 
-const STRIP_SELECTORS = [
+/**
+ * One selector list, so the document is walked once instead of once per entry.
+ * `[class*="sponsor"]` also covers "sponsored".
+ */
+const BOILERPLATE_SELECTOR = [
   "script",
   "style",
   "iframe",
@@ -28,11 +32,10 @@ const STRIP_SELECTORS = [
   "footer",
   ".ad",
   '[class*="ad-banner"]',
-  '[class*="sponsored"]',
   '[class*="sponsor"]',
   '[id*="cookie"]',
   '[class*="cookie"]',
-];
+].join(",");
 
 /**
  * Extracts the primary article content and metadata from an HTML string,
@@ -53,13 +56,10 @@ export function extractArticleFromHtml(
   const { document } = parseHTML(rawHtml);
 
   // Pre-strip noise tags before Readability and Turndown
-  for (const sel of STRIP_SELECTORS) {
-    const nodes = document.querySelectorAll(sel);
-    for (const node of nodes) {
-      node.remove();
-    }
-  }
+  for (const node of document.querySelectorAll(BOILERPLATE_SELECTOR)) node.remove();
 
+  // linkedom's document is structurally what Readability needs, but the two
+  // packages do not share a DOM type (and this project compiles without lib.dom).
   const reader = new Readability(document as any, {
     charThreshold: options.charThreshold ?? 50,
   });

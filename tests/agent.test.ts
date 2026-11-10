@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, test } from "bun:test";
-import { createAgent, defineTopic } from "../src/agent.ts";
-import { createStore } from "../src/store.ts";
-import type { AgentDeps, ParsedFeedItem, Topic } from "../src/types.ts";
+import { createAgent, defineTopic } from "../src/agent/agent.ts";
+import { createStore } from "../src/storage/store.ts";
+import type { AgentDeps, ParsedFeedItem, Store, Topic } from "../src/types.ts";
 
 const topic: Topic = defineTopic({
   name: "teste",
@@ -106,6 +106,104 @@ describe("ingest", () => {
     const agent = createAgent(topic, h.deps);
     await agent.ingest();
     expect(agent.store.pendingItems(10)[0]?.summary).toBe("resumo 1");
+  });
+});
+
+describe("ingest: lote e concorrência", () => {
+  test("grava um lote por feed quando o store tem insertItems", async () => {
+    const h = harness({ "Feed A": [item(1), item(2)], "Feed B": [item(3)] });
+    const inner = createStore(":memory:");
+    const batches: number[] = [];
+    let singles = 0;
+    const store: Store = {
+      ...inner,
+      insertItem: (row) => {
+        singles++;
+        return inner.insertItem(row);
+      },
+      insertItems: (rows) => {
+        batches.push(rows.length);
+        return inner.insertItems(rows);
+      },
+    };
+    const agent = createAgent(topic, { ...h.deps, store });
+    expect(await agent.ingest()).toBe(3);
+    expect(batches.sort()).toEqual([1, 2]);
+    expect(singles).toBe(0);
+  });
+
+  test("store escrito contra a 0.4 (sem insertItems nem stats) continua funcionando", async () => {
+    const h = harness({ "Feed A": [item(1), item(2), item(1)] });
+    const inner = createStore(":memory:");
+    const legacy: Store = {
+      insertItem: (row) => inner.insertItem(row),
+      pendingItems: (limit) => inner.pendingItems(limit),
+      markDigested: (ids) => inner.markDigested(ids),
+      close: () => inner.close(),
+    };
+    const agent = createAgent(topic, { ...h.deps, store: legacy });
+    expect(await agent.ingest()).toBe(2);
+    expect(agent.status()).toBeNull();
+    await agent.digest();
+    expect(h.sent).toHaveLength(1);
+    expect(legacy.pendingItems(10)).toHaveLength(0);
+  });
+
+  test("feedConcurrency limita quantos feeds são lidos ao mesmo tempo", async () => {
+    const many: Topic = {
+      ...topic,
+      feeds: Array.from({ length: 9 }, (_, i) => ({ name: `F${i}`, url: `https://f${i}.example/rss` })),
+    };
+    const h = harness({});
+    let running = 0;
+    let peak = 0;
+    const agent = createAgent(many, {
+      ...h.deps,
+      config: { ...h.deps.config, feedConcurrency: 2 },
+      fetchFeed: async (feed) => {
+        peak = Math.max(peak, ++running);
+        await new Promise((resolve) => setTimeout(resolve, 2));
+        running--;
+        return [{ title: `De ${feed.name}`, link: `${feed.url}/1` }];
+      },
+    });
+    expect(await agent.ingest()).toBe(9);
+    expect(peak).toBe(2);
+  });
+
+  test("feed que falha no meio de uma fila limitada não segura os seguintes", async () => {
+    const many: Topic = {
+      ...topic,
+      feeds: [1, 2, 3, 4].map((i) => ({ name: `F${i}`, url: `https://f${i}.example/rss` })),
+    };
+    const h = harness({});
+    const agent = createAgent(many, {
+      ...h.deps,
+      config: { ...h.deps.config, feedConcurrency: 1 },
+      fetchFeed: async (feed) => {
+        if (feed.name === "F2") throw new Error("timeout");
+        return [{ title: `De ${feed.name}`, link: `${feed.url}/1` }];
+      },
+    });
+    expect(await agent.ingest()).toBe(3);
+    expect(h.logs).toContain('  ! feed "F2" falhou: Error: timeout');
+  });
+});
+
+describe("status", () => {
+  test("reflete a fila antes e depois do digest", async () => {
+    const h = harness({ "Feed A": [item(1), item(2)] });
+    const agent = createAgent(topic, h.deps);
+    expect(agent.status()).toEqual({ total: 0, pending: 0, digested: 0, lastFetchedAt: null });
+    await agent.ingest();
+    expect(agent.status()).toEqual({
+      total: 2,
+      pending: 2,
+      digested: 0,
+      lastFetchedAt: "2026-08-20T12:00:00.000Z",
+    });
+    await agent.digest();
+    expect(agent.status()).toMatchObject({ total: 2, pending: 0, digested: 2 });
   });
 });
 

@@ -12,12 +12,18 @@
 ## Comandos
 ```bash
 bun install --frozen-lockfile # Instalação
-bun test                      # Testes (85 specs, sem rede nem side effects)
-bun run typecheck             # Verificação de tipos
+bun test                      # Testes (159 specs, sem rede nem side effects)
+bun run typecheck             # Verificação de tipos (src, tests e bench)
 bun run build                 # Gera dist/core.js e dist/core.d.ts
+bun run bench                 # Benchmark dos caminhos quentes (sem rede)
 ```
 
 Não há script de lint. Exemplo local sem credenciais: `DB_PATH=:memory: bun run example -- --ingest`.
+
+## Estrutura
+- `src/index.ts` (entrada Bun) e `src/core.ts` (entrada `./core`, Node).
+- `src/agent/` orquestração e CLI; `src/sources/` feeds e extração de HTML; `src/storage/` SQLite e vetores; `src/ai/` chat, cadeia de modelos e filtros de prosa; `src/delivery/` Telegram; `src/util/` primitivas puras.
+- `bench/` benchmark reprodutível; método e números em `docs/BENCHMARK.md`.
 
 ## Gates de CI
 - `validate.yml` (PR e push em `main`): reusable `base-actions` de validação, com auditoria de dependências e varredura de segredos.
@@ -25,7 +31,9 @@ Não há script de lint. Exemplo local sem credenciais: `DB_PATH=:memory: bun ru
 - `publish.yml` (tag `v*`): typecheck, test, build e `npm publish`.
 
 ## Não fazer
-- Importar `bun:*` em módulos reexportados por `src/core.ts` (o subpath `./core` roda em Node).
+- Importar `bun:*` em módulos reexportados por `src/core.ts` (o subpath `./core` roda em Node). `bun:sqlite` só entra em `src/storage/`; `tests/architecture.test.ts` falha se o grafo de `core.ts` alcançar `bun:*` ou `storage/`.
+- Remover ou renomear export de `src/index.ts`/`src/core.ts`: a lista da 0.4.0 está congelada em `tests/architecture.test.ts`. Membro novo em interface que o consumidor implementa (`Store`, `Config`, `AgentDeps`) entra como opcional.
+- Afirmar ganho de desempenho sem rodar `bun run bench` antes e depois.
 - Commitar `.env`, tokens ou chaves; o `.gitignore` já cobre `.env` e `data/`.
 
 ## Regras de Publicação

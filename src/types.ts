@@ -39,6 +39,8 @@ export interface Config {
   aiModel: string;
   aiTemperature: number;
   aiMaxTokens: number;
+  /** teto de espera por resposta do provider, em ms; 0 desliga. Padrão: 300000 */
+  aiTimeoutMs?: number;
 
   ollamaBaseUrl: string;
   ollamaModel: string;
@@ -59,6 +61,8 @@ export interface Config {
   maxItemsPerFeed: number;
   digestMaxItems: number;
   feedTimeoutMs: number;
+  /** quantos feeds são lidos ao mesmo tempo. Padrão: 8 */
+  feedConcurrency?: number;
   timezone: string;
   locale: string;
 }
@@ -81,11 +85,33 @@ export interface ParsedFeedItem {
 /** Busca e parseia um feed. Injetável para teste — nada de rede nos testes. */
 export type FetchFeedFn = (feed: Feed) => Promise<ParsedFeedItem[]>;
 
+export interface StoreStats {
+  total: number;
+  pending: number;
+  digested: number;
+  /** `fetched_at` mais recente, ou null com o banco vazio */
+  lastFetchedAt: string | null;
+}
+
+/**
+ * Contrato mínimo de persistência. `insertItems` e `stats` são opcionais para
+ * que um store próprio escrito contra a 0.4 continue válido; o agente usa os
+ * dois quando existem.
+ */
 export interface Store {
   insertItem(row: NewItem): boolean;
+  /** Grava o lote numa transação só. Retorna quantos eram novos. */
+  insertItems?(rows: NewItem[]): number;
   pendingItems(limit: number): Item[];
   markDigested(ids: string[]): void;
+  stats?(): StoreStats;
   close(): void;
+}
+
+/** O store de `createStore`: implementa também as operações opcionais. */
+export interface SqliteStore extends Store {
+  insertItems(rows: NewItem[]): number;
+  stats(): StoreStats;
 }
 
 /** O que um digest entregou — para arquivar em outro lugar (ex.: second brain). */
@@ -125,5 +151,7 @@ export interface Agent {
   runOnce(options?: DigestOptions): Promise<void>;
   /** agenda os dois crons e fica de pé. Retorna uma função para parar. */
   startLoop(): () => void;
+  /** Contagem da fila, ou null se o store injetado não implementa `stats`. */
+  status(): StoreStats | null;
   close(): void;
 }

@@ -1,6 +1,9 @@
-import { redact } from "./ai.ts";
-import { splitMessage } from "./text.ts";
-import type { Config, SendFn } from "./types.ts";
+import { redact } from "../util/redact.ts";
+import { splitMessage } from "../util/text.ts";
+import type { Config, SendFn } from "../types.ts";
+
+/** A API do Telegram responde em milissegundos; meio minuto parado é conexão morta. */
+const REQUEST_TIMEOUT_MS = 30_000;
 
 /**
  * Envia Markdown para todos os chats configurados, quebrando no limite do Telegram.
@@ -22,6 +25,7 @@ export function createSend(
         ...(markdown ? { parse_mode: "Markdown" } : {}),
         disable_web_page_preview: true,
       }),
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });
 
   async function deliver(chatId: string, chunk: string): Promise<boolean> {
@@ -42,11 +46,12 @@ export function createSend(
       log(`[telegram] não configurado — imprimindo no console:\n\n${text}`);
       return;
     }
+    const chunks = splitMessage(text);
     let delivered = 0;
     for (const chatId of config.telegramChatIds) {
       try {
         let ok = true;
-        for (const chunk of splitMessage(text)) {
+        for (const chunk of chunks) {
           ok = await deliver(chatId, chunk);
           if (!ok) break;
         }

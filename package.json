@@ -1,6 +1,6 @@
 {
   "name": "@juninmd/digest-kit",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "license": "MIT",
   "description": "Núcleo dos agentes de digest: RSS → SQLite → IA → Telegram. O agente vira um arquivo de tópico.",
   "repository": {
@@ -30,6 +30,8 @@
     "test": "bun test",
     "typecheck": "tsc --noEmit",
     "example": "bun run examples/meu-agente/src/index.ts",
+    "bench": "bun run bench/run.ts",
+    "bench:compare": "bun run bench/compare.ts",
     "build": "tsc -p tsconfig.build.json",
     "prepare": "tsc -p tsconfig.build.json"
   },

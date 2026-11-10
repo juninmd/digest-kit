@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { extractArticleFromHtml } from "../src/extract.ts";
+import { extractArticleFromHtml } from "../src/sources/extract.ts";
 
 describe("extractArticleFromHtml", () => {
   const SAMPLE_HTML = `

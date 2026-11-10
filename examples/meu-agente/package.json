@@ -7,7 +7,8 @@
     "dev": "bun run src/index.ts",
     "start": "bun run src/index.ts --loop",
     "ingest": "bun run src/index.ts --ingest",
-    "digest": "bun run src/index.ts --digest"
+    "digest": "bun run src/index.ts --digest",
+    "status": "bun run src/index.ts --status"
   },
   "dependencies": {
     "node-cron": "^3.0.3",
