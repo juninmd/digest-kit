@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { loadConfig } from "../src/config.ts";
+import { loadConfig } from "../src/agent/config.ts";
 
 describe("loadConfig", () => {
   test("usa os padrões com ambiente vazio", () => {

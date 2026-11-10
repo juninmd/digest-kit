@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { loadConfig } from "../src/config.ts";
-import { createSend } from "../src/telegram.ts";
+import { loadConfig } from "../src/agent/config.ts";
+import { createSend } from "../src/delivery/telegram.ts";
 
 interface Call {
   chatId: string;

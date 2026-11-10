@@ -1,5 +1,5 @@
 import Parser from "rss-parser";
-import type { Config, FetchFeedFn } from "./types.ts";
+import type { Config, FetchFeedFn } from "../types.ts";
 
 /** Leitor de RSS/Atom padrão. Injetável: os testes passam outro no lugar. */
 export function createFetchFeed(config: Config): FetchFeedFn {

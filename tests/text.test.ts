@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { clean, formatItems, idFor, splitMessage } from "../src/text.ts";
-import { redact } from "../src/ai.ts";
+import { clean, formatItems, idFor, splitMessage } from "../src/util/text.ts";
+import { redact } from "../src/util/redact.ts";
 
 describe("clean", () => {
   test("tira HTML e colapsa espaço", () => {

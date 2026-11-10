@@ -1,35 +1,41 @@
-export { createAgent, defineTopic, runAgent } from "./agent.ts";
-export { type Mode, type Parsed, parseArgs, USAGE } from "./args.ts";
-export { createChat, redact } from "./ai.ts";
-export { loadConfig } from "./config.ts";
+// Bun entry: everything in ./core.ts plus the pieces that need bun:sqlite.
+export { createAgent, defineTopic } from "./agent/agent.ts";
+export { type Mode, type Parsed, parseArgs, USAGE } from "./agent/args.ts";
+export { runAgent } from "./agent/cli.ts";
+export { loadConfig } from "./agent/config.ts";
 export {
   backoffDelay,
+  clean,
+  createChat,
   type ExtractArticleOptions,
   type ExtractedArticle,
   extractArticleFromHtml,
   extractJsonObject,
+  formatItems,
   hasEnglishSentence,
   hasModelArtifacts,
   hasPromptLeak,
+  idFor,
   isPollutedProse,
   isRateLimitError,
   isSafeExternalUrl,
   looksGarbled,
   ModelChainError,
+  redact,
   runModelChain,
+  splitMessage,
   withRetry,
 } from "./core.ts";
-export { createFetchFeed } from "./feeds.ts";
-export { createStore } from "./store.ts";
-export { createSend } from "./telegram.ts";
-export { clean, formatItems, idFor, splitMessage } from "./text.ts";
+export { createSend } from "./delivery/telegram.ts";
+export { createFetchFeed } from "./sources/feeds.ts";
+export { createStore } from "./storage/store.ts";
 export {
   createVectorStore,
   loadSqliteVec,
   type VectorMatch,
   type VectorStore,
   type VectorStoreOptions,
-} from "./vector.ts";
+} from "./storage/vector.ts";
 export type {
   Agent,
   AgentDeps,

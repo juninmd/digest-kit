@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { ModelChainError, runModelChain } from "../src/chain.ts";
-import { backoffDelay, isRateLimitError, withRetry } from "../src/retry.ts";
+import { ModelChainError, runModelChain } from "../src/ai/chain.ts";
+import { backoffDelay, isRateLimitError, withRetry } from "../src/util/retry.ts";
 
 const noSleep = async () => {};
 

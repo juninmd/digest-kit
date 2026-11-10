@@ -1,4 +1,4 @@
-import type { AiProvider, Config } from "./types.ts";
+import type { AiProvider, Config } from "../types.ts";
 
 const num = (v: string | undefined, d: number) => {
   const n = v === undefined || v === "" ? Number.NaN : Number(v);

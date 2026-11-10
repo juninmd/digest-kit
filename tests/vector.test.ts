@@ -3,7 +3,7 @@ import { Database } from "bun:sqlite";
 import {
   createVectorStore,
   loadSqliteVec,
-} from "../src/vector.ts";
+} from "../src/storage/vector.ts";
 
 describe("vector store", () => {
   test("loadSqliteVec loads extension successfully in Database", () => {

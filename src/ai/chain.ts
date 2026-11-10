@@ -1,4 +1,4 @@
-import { type RetryOptions, isRateLimitError, withRetry } from "./retry.ts";
+import { type RetryOptions, isRateLimitError, withRetry } from "../util/retry.ts";
 
 export interface ModelChainOptions<M, T> {
   /** An empty result moves to the next model without retrying the same one. */

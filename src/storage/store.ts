@@ -1,7 +1,7 @@
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import { Database } from "bun:sqlite";
-import type { Item, NewItem, Store } from "./types.ts";
+import type { Item, NewItem, Store } from "../types.ts";
 
 const SCHEMA = `
   CREATE TABLE IF NOT EXISTS items (

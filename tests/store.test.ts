@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { createStore } from "../src/store.ts";
+import { createStore } from "../src/storage/store.ts";
 import type { NewItem } from "../src/types.ts";
 
 const row = (n: number, fetchedAt = "2026-08-20T10:00:00Z"): NewItem => ({

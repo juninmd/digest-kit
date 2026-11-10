@@ -1,4 +1,5 @@
-import type { ChatFn, Config } from "./types.ts";
+import type { ChatFn, Config } from "../types.ts";
+import { redact } from "../util/redact.ts";
 
 /**
  * Chat single-shot com o provider configurado.
@@ -103,14 +104,4 @@ async function google(config: Config, system: string, user: string): Promise<str
     candidates?: { content?: { parts?: { text?: string }[] } }[];
   };
   return json.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? "";
-}
-
-/** Corpo de erro de provider às vezes ecoa a chave enviada. Nunca logamos isso cru. */
-export function redact(text: string): string {
-  return text
-    .replace(/(sk-|xoxb-|ghp_|gho_)[A-Za-z0-9_-]{8,}/g, "$1***")
-    .replace(/(bot)\d+:[A-Za-z0-9_-]+/g, "$1***")
-    .replace(/(Bearer\s+)\S+/gi, "$1***")
-    .replace(/("?(api[_-]?key|authorization|x-api-key)"?\s*[:=]\s*"?)[^"',\s]+/gi, "$1***")
-    .slice(0, 500);
 }

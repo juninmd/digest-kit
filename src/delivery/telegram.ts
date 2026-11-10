@@ -1,6 +1,6 @@
-import { redact } from "./ai.ts";
-import { splitMessage } from "./text.ts";
-import type { Config, SendFn } from "./types.ts";
+import { redact } from "../util/redact.ts";
+import { splitMessage } from "../util/text.ts";
+import type { Config, SendFn } from "../types.ts";
 
 /**
  * Envia Markdown para todos os chats configurados, quebrando no limite do Telegram.

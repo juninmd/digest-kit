@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { extractJsonObject } from "../src/json.ts";
+import { extractJsonObject } from "../src/util/json.ts";
 
 describe("extractJsonObject", () => {
   it("skips braces in the prose before the JSON", () => {

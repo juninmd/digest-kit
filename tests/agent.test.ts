@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, test } from "bun:test";
-import { createAgent, defineTopic } from "../src/agent.ts";
-import { createStore } from "../src/store.ts";
+import { createAgent, defineTopic } from "../src/agent/agent.ts";
+import { createStore } from "../src/storage/store.ts";
 import type { AgentDeps, ParsedFeedItem, Topic } from "../src/types.ts";
 
 const topic: Topic = defineTopic({

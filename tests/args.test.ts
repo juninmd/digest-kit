@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { parseArgs } from "../src/args.ts";
+import { parseArgs } from "../src/agent/args.ts";
 
 describe("parseArgs", () => {
   test("sem argumento é um ciclo único", () => {
