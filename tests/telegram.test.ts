@@ -60,4 +60,21 @@ describe("createSend", () => {
     await createSend(loadConfig({}, {}), (m) => logs.push(m))("oi");
     expect(logs[0]).toContain("não configurado");
   });
+  test("mensagem longa é fatiada uma vez e cada pedaço vai a todos os chats, com timeout", async () => {
+    const seen: { chatId: string; length: number; hasSignal: boolean }[] = [];
+    const impl = (async (_url: string, init: RequestInit) => {
+      const body = JSON.parse(String(init.body)) as { chat_id: string; text: string };
+      seen.push({ chatId: body.chat_id, length: body.text.length, hasSignal: init.signal instanceof AbortSignal });
+      return new Response("{}", { status: 200 });
+    }) as unknown as typeof fetch;
+    const text = Array.from({ length: 120 }, (_, i) => `linha ${i} ${"x".repeat(60)}`).join("\n");
+    await createSend(config(["1", "2"]), () => {}, impl)(text);
+
+    const chunksPerChat = seen.filter((c) => c.chatId === "1").length;
+    expect(chunksPerChat).toBeGreaterThan(1);
+    expect(seen.filter((c) => c.chatId === "2").map((c) => c.length)).toEqual(
+      seen.filter((c) => c.chatId === "1").map((c) => c.length),
+    );
+    expect(seen.every((c) => c.hasSignal && c.length <= 4096)).toBe(true);
+  });
 });
