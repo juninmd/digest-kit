@@ -237,6 +237,16 @@ describe("digest", () => {
     expect(h.prompts[0]?.user).toContain("Notícia 1");
   });
 
+  test("manchete repetida em outro feed sai uma vez e não volta no digest seguinte", async () => {
+    const copy = { ...item(1), link: "https://b.example/outra-url" };
+    const dup = harness({ "Feed A": [item(1)], "Feed B": [copy] });
+    const agent = createAgent(topic, dup.deps);
+    await agent.ingest();
+    await agent.digest();
+    expect(dup.prompts[0]?.user.match(/Notícia 1/g)).toHaveLength(1);
+    expect(await agent.digest()).toBeNull();
+  });
+
   test("itens enviados não voltam no digest seguinte", async () => {
     const agent = createAgent(topic, h.deps);
     await agent.ingest();

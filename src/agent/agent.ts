@@ -192,6 +192,8 @@ export function createAgent(topic: Topic, deps: AgentDeps = {}): Agent {
     }
 
     await send(message);
+    // Duplicatas são a mesma manchete já enviada em `items` vinda de outro feed:
+    // marcá-las junto é o que impede que ela volte, repetida, no digest seguinte.
     store.markDigested([...items, ...duplicates].map((it) => it.id));
     log(
       `[digest] enviado com ${items.length} itens${duplicates.length ? ` (${duplicates.length} duplicados descartados)` : ""}`,
