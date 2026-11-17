@@ -237,6 +237,16 @@ describe("digest", () => {
     expect(h.prompts[0]?.user).toContain("Notícia 1");
   });
 
+  test("manchete repetida em outro feed sai uma vez e não volta no digest seguinte", async () => {
+    const copy = { ...item(1), link: "https://b.example/outra-url" };
+    const dup = harness({ "Feed A": [item(1)], "Feed B": [copy] });
+    const agent = createAgent(topic, dup.deps);
+    await agent.ingest();
+    await agent.digest();
+    expect(dup.prompts[0]?.user.match(/Notícia 1/g)).toHaveLength(1);
+    expect(await agent.digest()).toBeNull();
+  });
+
   test("itens enviados não voltam no digest seguinte", async () => {
     const agent = createAgent(topic, h.deps);
     await agent.ingest();
@@ -352,5 +362,49 @@ describe("startLoop", () => {
     const stop = agent.startLoop();
     expect(h.logs.some((l) => l.includes("agente ativo"))).toBe(true);
     expect(() => stop()).not.toThrow();
+  });
+});
+
+describe("selectDigestItems", () => {
+  const { selectDigestItems } = require("../src/agent/agent.ts");
+  const row = (id: string, source: string, title = id) => ({
+    id, title, link: `https://x/${id}`, source, summary: null, published: null, fetched_at: "2026-01-01", digested: 0,
+  });
+
+  test("limita por fonte, preenche a sobra e descarta manchete repetida", () => {
+    const pool = [row("a1", "A"), row("a2", "A"), row("a3", "A"), row("b1", "B", "a1"), row("b2", "B")];
+    const { picked, duplicates } = selectDigestItems(pool, 4, 2);
+    expect(picked.map((r: { id: string }) => r.id)).toEqual(["a1", "a2", "b2", "a3"]);
+    expect(duplicates.map((r: { id: string }) => r.id)).toEqual(["b1"]);
+  });
+});
+
+describe("fila com expiração", () => {
+  test("pendente velho sai da fila e não volta a ser pendente", () => {
+    const store = createStore(":memory:");
+    store.insertItems([
+      { id: "old", title: "t", link: "l", source: "s", summary: "x", published: null, fetched_at: "2026-01-01T00:00:00Z" },
+      { id: "new", title: "t2", link: "l2", source: "s", summary: "x", published: null, fetched_at: "2026-01-05T00:00:00Z" },
+    ]);
+    expect(store.expirePending("2026-01-03T00:00:00Z")).toBe(1);
+    expect(store.pendingItems(10).map((i) => i.id)).toEqual(["new"]);
+    store.markDigested(["new"]);
+    expect(store.compactDigested("2026-02-01T00:00:00Z")).toBe(2);
+    expect(store.stats().pending).toBe(0);
+  });
+});
+
+describe("upgrade de id", () => {
+  test("item gravado com o id antigo (hash do link cru) não volta como novo", async () => {
+    const { idFor } = require("../src/util/text.ts");
+    const store = createStore(":memory:");
+    store.insertItems([{ id: idFor("https://a.example/1"), title: "Notícia 1", link: "https://a.example/1", source: "Feed A", summary: null, published: null, fetched_at: "2026-01-01T00:00:00Z" }]);
+    store.markDigested([idFor("https://a.example/1")]);
+    const agent = createAgent(topic, {
+      store, chat: async () => "x", send: async () => {}, log: () => {},
+      fetchFeed: async (f) => (f.name === "Feed A" ? [item(1), item(2)] : []),
+      config: { pendingTtlHours: 0 },
+    });
+    expect(await agent.ingest()).toBe(1);
   });
 });

@@ -4,6 +4,8 @@ import type { Config, SendFn } from "../types.ts";
 
 /** A API do Telegram responde em milissegundos; meio minuto parado é conexão morta. */
 const REQUEST_TIMEOUT_MS = 30_000;
+/** Teto da espera pedida num 429; mais que isso o digest falha e tenta no próximo ciclo. */
+const MAX_RETRY_AFTER_S = 30;
 
 /**
  * Envia Markdown para todos os chats configurados, quebrando no limite do Telegram.
@@ -14,6 +16,7 @@ export function createSend(
   config: Config,
   log: (msg: string) => void = console.log,
   fetchImpl: typeof fetch = fetch,
+  sleep: (ms: number) => Promise<void> = (ms) => new Promise((r) => setTimeout(r, ms)),
 ): SendFn {
   const post = (chatId: string, text: string, markdown: boolean) =>
     fetchImpl(`https://api.telegram.org/bot${config.telegramToken}/sendMessage`, {
@@ -28,8 +31,25 @@ export function createSend(
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });
 
+  /** 429 do Telegram traz `parameters.retry_after` (s): espera uma vez e reenvia. */
+  async function retryAfter(res: Response): Promise<number> {
+    try {
+      const body = (await res.clone().json()) as { parameters?: { retry_after?: number } };
+      const s = Number(body.parameters?.retry_after);
+      return Number.isFinite(s) && s > 0 ? Math.min(s, MAX_RETRY_AFTER_S) : 1;
+    } catch {
+      return 1;
+    }
+  }
+
   async function deliver(chatId: string, chunk: string): Promise<boolean> {
     let res = await post(chatId, chunk, true);
+    if (res.status === 429) {
+      const wait = await retryAfter(res);
+      log(`[telegram] chat ${chatId}: limite de envio — nova tentativa em ${wait}s`);
+      await sleep(wait * 1000);
+      res = await post(chatId, chunk, true);
+    }
     if (res.status === 400) {
       // Quase sempre é Markdown inválido vindo do LLM: o texto ainda vale entregar.
       log(`[telegram] chat ${chatId}: Markdown recusado — reenviando como texto simples`);

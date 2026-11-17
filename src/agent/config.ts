@@ -46,15 +46,10 @@ export function loadConfig(
     aiTemperature: readNumber(env.AI_TEMPERATURE, 0.4),
     aiMaxTokens: readCount(env.AI_MAX_TOKENS, 2048),
     aiTimeoutMs: readDuration(env.AI_TIMEOUT_MS, 300_000),
+    aiFallbackModels: readList(env.AI_FALLBACK_MODELS),
 
     ollamaBaseUrl: env.OLLAMA_BASE_URL ?? "http://localhost:11434/v1",
     ollamaModel: env.OLLAMA_MODEL ?? "llama3.2",
-    openaiKey: env.OPENAI_API_KEY ?? "",
-    openaiModel: env.OPENAI_MODEL ?? "gpt-4o-mini",
-    anthropicKey: env.ANTHROPIC_API_KEY ?? "",
-    anthropicModel: env.ANTHROPIC_MODEL ?? "claude-haiku-4-5-20251001",
-    geminiKey: env.GEMINI_API_KEY ?? "",
-    geminiModel: env.GEMINI_MODEL ?? "gemini-2.5-flash",
 
     telegramToken: env.TELEGRAM_BOT_TOKEN ?? "",
     telegramChatIds: readList(env.TELEGRAM_CHAT_IDS ?? env.TELEGRAM_CHAT_ID),
@@ -69,6 +64,10 @@ export function loadConfig(
     feedConcurrency: readCount(env.FEED_CONCURRENCY, DEFAULT_FEED_CONCURRENCY),
     timezone: env.TZ_DISPLAY ?? "America/Sao_Paulo",
     locale: env.LOCALE ?? "pt-BR",
+    pendingTtlHours: readDuration(env.PENDING_TTL_HOURS, 48),
+    maxItemsPerSource: readCount(env.MAX_ITEMS_PER_SOURCE, 4),
+    digestLinkRefs: !/^(0|false|no|off)$/i.test(env.DIGEST_LINK_REFS?.trim() ?? ""),
+    retentionDays: readDuration(env.RETENTION_DAYS, 30),
   };
   return { ...base, ...overrides };
 }

@@ -36,7 +36,7 @@ O `@juninmd/digest-kit` é uma biblioteca para quem mantém agentes de resumo di
 - Ingestão de feeds RSS/Atom com falha isolada por feed, limite de itens (`MAX_ITEMS_PER_FEED`) e de leituras simultâneas (`FEED_CONCURRENCY`).
 - Persistência e deduplicação em SQLite (`bun:sqlite`), com id derivado do hash do link; cada feed é gravado em uma transação.
 - `--status` / `agent.status()` / `store.stats()`: pendentes, enviados e última coleta, sem tocar em feed, IA ou Telegram.
-- Chat com LLM por provedor: `ollama`, `openai`, `anthropic`, `google` ou `compatible` (gateway OpenAI-compatível).
+- Chat com LLM só via LiteLLM (`AI_PROVIDER=litellm`, API OpenAI); `ollama` fica para rodar local.
 - Entrega no Telegram com quebra de mensagem longa; Markdown recusado (400) é reenviado como texto simples; se nenhum chat recebe, os itens continuam pendentes. Sem token, imprime no console.
 - Hook `onDigest` (em `createAgent`/`runAgent`) para arquivar cada digest enviado em outro destino.
 - Busca vetorial e deduplicação semântica local via `sqlite-vec` (`createVectorStore` / `loadSqliteVec` com tabelas virtuais `vec0`), com métrica `l2`, `cosine` ou `l1` e gravação em lote (`upsertMany`).
@@ -204,8 +204,8 @@ O Bun carrega arquivos `.env` automaticamente. Todas as variáveis possuem padr�
 
 | Variável | Padrão | Descrição |
 |---|---|---|
-| `AI_PROVIDER` | `ollama` | Provedor: `ollama`, `openai`, `anthropic`, `google` ou `compatible` |
-| `AI_BASE_URL` / `AI_API_KEY` / `AI_MODEL` | — | Usados por `AI_PROVIDER=compatible` (LiteLLM, vLLM, Groq, OpenRouter) |
+| `AI_PROVIDER` | `ollama` | `litellm` (ou o sinônimo `compatible`) em produção; `ollama` para rodar local. Provedores diretos (`openai`, `anthropic`, `google`) foram removidos na 0.6.0 |
+| `AI_BASE_URL` / `AI_API_KEY` / `AI_MODEL` | — | URL, chave virtual e modelo do LiteLLM (`AI_PROVIDER=litellm`) |
 | `AI_TEMPERATURE` | `0.4` | Temperatura do modelo de IA |
 | `AI_TIMEOUT_MS` | `300000` | Tempo máximo de espera pela resposta do provedor; `0` desliga. Estourou, o digest sai com a lista bruta |
 | `TELEGRAM_BOT_TOKEN` | — | Token do bot. Se omitido, o digest é impresso no console |
@@ -217,6 +217,12 @@ O Bun carrega arquivos `.env` automaticamente. Todas as variáveis possuem padr�
 | `DIGEST_MAX_ITEMS` | `12` | Quantidade máxima de itens resumidos por ciclo |
 | `FEED_TIMEOUT_MS` | `12000` | Timeout de rede para requisições de feeds RSS |
 | `FEED_CONCURRENCY` | `8` | Quantos feeds são lidos ao mesmo tempo |
+| `AI_FALLBACK_MODELS` | — | Modelos tentados em ordem se o principal falhar ou vier vazio separados por vírgula |
+| `AI_MAX_TOKENS` | `2048` | Teto de saída, agora aplicado a todos os provedores |
+| `PENDING_TTL_HOURS` | `48` | Pendente mais velho que isso sai da fila sem ser enviado; `0` desliga |
+| `MAX_ITEMS_PER_SOURCE` | `4` | Teto de itens de uma mesma fonte por digest; vaga que sobrar é preenchida |
+| `DIGEST_LINK_REFS` | `true` | O modelo cita `[n]` e o link entra depois: menos tokens e link sempre exato |
+| `RETENTION_DAYS` | `30` | Itens enviados há mais tempo perdem o resumo (o id fica para a deduplicação); `0` desliga |
 | `TZ_DISPLAY` / `LOCALE` | `America/Sao_Paulo` / `pt-BR` | Fuso horário e formatação de datas no cabeçalho |
 
 ---
@@ -226,6 +232,8 @@ O Bun carrega arquivos `.env` automaticamente. Todas as variáveis possuem padr�
 - **Deduplicação garantida:** Chave primária baseada em hash SHA-1 do link evita repetições.
 - **Isolamento de falhas:** Feeds fora do ar geram avisos em log sem interromper os demais (`mapSettled`, com no máximo `FEED_CONCURRENCY` leituras simultâneas).
 - **Gravação em lote:** Os itens de cada feed entram em uma transação: um commit por feed, não um por item.
+- **Fila sem acúmulo e sem repetição:** pendentes expiram (`PENDING_TTL_HOURS`), o link é normalizado antes do hash (sem `utm_*`, `www.`, barra final) e a mesma manchete de outro feed não entra duas vezes.
+- **Feeds condicionais:** ETag/Last-Modified são reenviados; feed sem mudança responde 304 sem corpo.
 - **Sem espera infinita:** Chamadas ao provedor de IA (`AI_TIMEOUT_MS`) e ao Telegram (30 s) têm limite de tempo.
 - **Sem digest em dobro no `--loop`:** Um disparo do cron é ignorado enquanto a execução anterior daquele ciclo ainda roda.
 - **Reserva sem IA:** Se a IA falhar ou retornar em branco, o agente entrega a lista bruta formatada para não perder o dia.
@@ -270,7 +278,7 @@ const result = await withRetry(() => fetchData(), { attempts: 3, baseMs: 1000 })
 
 // Cadeia de fallback entre modelos com retry para rate limit
 const text = await runModelChain(
-  ["gpt-4o-mini", "gemini-2.5-flash"],
+  ["cloud/auto", "cloud/gemma3"],
   async (model) => callModel(model, prompt),
 );
 

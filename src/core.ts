@@ -14,10 +14,12 @@ export {
   type ExtractedArticle,
   extractArticleFromHtml,
 } from "./sources/extract.ts";
-export type { AiProvider, ChatFn, Config } from "./types.ts";
+export type { AiProvider, ChatFn, ChatUsage, Config } from "./types.ts";
+export type { CreateChatOptions } from "./ai/chat.ts";
+export type { FormatItemsOptions } from "./util/text.ts";
 export { mapSettled } from "./util/concurrency.ts";
 export { extractJsonObject } from "./util/json.ts";
 export { isSafeExternalUrl } from "./util/net.ts";
 export { redact } from "./util/redact.ts";
 export { backoffDelay, isRateLimitError, type RetryOptions, withRetry } from "./util/retry.ts";
-export { clean, formatItems, idFor, splitMessage } from "./util/text.ts";
+export { clean, formatItems, idFor, linkRefs, normalizeLink, splitMessage, titleKey } from "./util/text.ts";
