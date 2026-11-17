@@ -1,46 +1,51 @@
-import type { ChatFn, Config } from "../types.ts";
+import type { ChatFn, ChatUsage, Config } from "../types.ts";
+import { isRateLimitError, withRetry } from "../util/retry.ts";
+import { ModelChainError, runModelChain } from "./chain.ts";
 import { redact } from "../util/redact.ts";
 
 const DEFAULT_TIMEOUT_MS = 300_000;
 
+export interface CreateChatOptions {
+  /** Recebe os tokens de cada chamada que o provider informar. */
+  onUsage?: (usage: ChatUsage) => void;
+}
+
+/** 429 é transitório: uma nova tentativa no mesmo modelo antes de passar ao próximo. */
+const RATE_LIMIT_RETRY = { attempts: 2, baseMs: 2000, isRetryable: isRateLimitError };
+
 /**
  * Chat single-shot com o provider configurado.
  * "compatible" cobre qualquer gateway OpenAI-compatible (LiteLLM, vLLM, Groq, OpenRouter).
+ * Nos providers OpenAI-compatíveis, `aiFallbackModels` vira uma cadeia: erro ou
+ * resposta vazia passa ao próximo modelo.
  */
-export function createChat(config: Config): ChatFn {
+export function createChat(config: Config, { onUsage }: CreateChatOptions = {}): ChatFn {
+  const chain = (baseUrl: string, key: string, model: string, system: string, user: string) =>
+    runModelChain(
+      [model, ...(config.aiFallbackModels ?? [])].filter(Boolean),
+      (m) => openaiCompatible(config, { baseUrl, key, model: m, system, user }, onUsage),
+      { isEmpty: (text) => !text, retry: RATE_LIMIT_RETRY },
+    ).catch((err) => {
+      // Todos responderam vazio: mantém o contrato de devolver "" (o agente cai para a lista bruta).
+      if (err instanceof ModelChainError && err.failures.every((f) => f.reason === "empty")) return "";
+      throw err;
+    });
+
   return async (system, user) => {
     switch (config.aiProvider) {
       case "anthropic":
-        return anthropic(config, system, user);
+        return withRetry(() => anthropic(config, system, user, onUsage), RATE_LIMIT_RETRY);
       case "google":
-        return google(config, system, user);
+        return withRetry(() => google(config, system, user, onUsage), RATE_LIMIT_RETRY);
       case "openai":
-        return openaiCompatible(config, {
-          baseUrl: "https://api.openai.com/v1",
-          key: config.openaiKey,
-          model: config.openaiModel,
-          system,
-          user,
-        });
+        return chain("https://api.openai.com/v1", config.openaiKey, config.openaiModel, system, user);
       case "compatible": {
         if (!config.aiBaseUrl) throw new Error("AI_BASE_URL é obrigatório com AI_PROVIDER=compatible");
         if (!config.aiModel) throw new Error("AI_MODEL é obrigatório com AI_PROVIDER=compatible");
-        return openaiCompatible(config, {
-          baseUrl: config.aiBaseUrl,
-          key: config.aiKey,
-          model: config.aiModel,
-          system,
-          user,
-        });
+        return chain(config.aiBaseUrl, config.aiKey, config.aiModel, system, user);
       }
       case "ollama":
-        return openaiCompatible(config, {
-          baseUrl: config.ollamaBaseUrl,
-          key: "ollama",
-          model: config.ollamaModel,
-          system,
-          user,
-        });
+        return chain(config.ollamaBaseUrl, "ollama", config.ollamaModel, system, user);
       default:
         // Antes um nome digitado errado caía em silêncio no Ollama local.
         throw new Error(
@@ -89,8 +94,19 @@ interface OpenAiRequest {
   user: string;
 }
 
-async function openaiCompatible(config: Config, request: OpenAiRequest): Promise<string> {
-  const json = await postJson<{ choices?: { message?: { content?: string } }[] }>(
+type OnUsage = CreateChatOptions["onUsage"];
+
+const tokens = (n: unknown): number => (typeof n === "number" && Number.isFinite(n) ? n : 0);
+
+async function openaiCompatible(
+  config: Config,
+  request: OpenAiRequest,
+  onUsage?: OnUsage,
+): Promise<string> {
+  const json = await postJson<{
+    choices?: { message?: { content?: string } }[];
+    usage?: { prompt_tokens?: number; completion_tokens?: number };
+  }>(
     config,
     "AI",
     `${trimSlash(request.baseUrl)}/chat/completions`,
@@ -102,13 +118,30 @@ async function openaiCompatible(config: Config, request: OpenAiRequest): Promise
         { role: "user", content: request.user },
       ],
       temperature: config.aiTemperature,
+      // Sem teto, um modelo que se perde em raciocínio ou repetição cobra até o limite do contexto.
+      max_tokens: config.aiMaxTokens,
     },
   );
+  if (json.usage)
+    onUsage?.({
+      provider: config.aiProvider,
+      model: request.model,
+      inputTokens: tokens(json.usage.prompt_tokens),
+      outputTokens: tokens(json.usage.completion_tokens),
+    });
   return json.choices?.[0]?.message?.content?.trim() ?? "";
 }
 
-async function anthropic(config: Config, system: string, user: string): Promise<string> {
-  const json = await postJson<{ content?: { text?: string }[] }>(
+async function anthropic(
+  config: Config,
+  system: string,
+  user: string,
+  onUsage?: OnUsage,
+): Promise<string> {
+  const json = await postJson<{
+    content?: { text?: string }[];
+    usage?: { input_tokens?: number; output_tokens?: number };
+  }>(
     config,
     "Anthropic",
     "https://api.anthropic.com/v1/messages",
@@ -117,15 +150,33 @@ async function anthropic(config: Config, system: string, user: string): Promise<
       model: config.anthropicModel,
       max_tokens: config.aiMaxTokens,
       system,
+      temperature: config.aiTemperature,
       messages: [{ role: "user", content: user }],
     },
   );
+  if (json.usage)
+    onUsage?.({
+      provider: "anthropic",
+      model: config.anthropicModel,
+      inputTokens: tokens(json.usage.input_tokens),
+      outputTokens: tokens(json.usage.output_tokens),
+    });
   return joinText(json.content);
 }
 
-async function google(config: Config, system: string, user: string): Promise<string> {
+async function google(
+  config: Config,
+  system: string,
+  user: string,
+  onUsage?: OnUsage,
+): Promise<string> {
   const json = await postJson<{
     candidates?: { content?: { parts?: { text?: string; thought?: boolean }[] } }[];
+    usageMetadata?: {
+      promptTokenCount?: number;
+      candidatesTokenCount?: number;
+      thoughtsTokenCount?: number;
+    };
   }>(
     config,
     "Gemini",
@@ -134,7 +185,17 @@ async function google(config: Config, system: string, user: string): Promise<str
     {
       systemInstruction: { parts: [{ text: system }] },
       contents: [{ role: "user", parts: [{ text: user }] }],
+      generationConfig: { maxOutputTokens: config.aiMaxTokens, temperature: config.aiTemperature },
     },
   );
+  if (json.usageMetadata)
+    onUsage?.({
+      provider: "google",
+      model: config.geminiModel,
+      inputTokens: tokens(json.usageMetadata.promptTokenCount),
+      // Raciocínio é cobrado como saída.
+      outputTokens:
+        tokens(json.usageMetadata.candidatesTokenCount) + tokens(json.usageMetadata.thoughtsTokenCount),
+    });
   return joinText(json.candidates?.[0]?.content?.parts);
 }

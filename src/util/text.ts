@@ -151,14 +151,64 @@ export function splitMessage(text: string, max = 3800): string[] {
   return out;
 }
 
+export interface FormatItemsOptions {
+  /** false omite a URL: o modelo cita `[n]` e `linkRefs` devolve o link. Padrão: true */
+  links?: boolean;
+}
+
 /** Lista numerada dos itens, do jeito que o modelo lê melhor. */
 export function formatItems(
   items: { source: string; title: string; summary: string | null; link: string }[],
+  { links = true }: FormatItemsOptions = {},
 ): string {
   return items
     .map(
       (it, i) =>
-        `${i + 1}. [${it.source}] ${it.title}\n   ${it.summary ?? ""}\n   ${it.link}`,
+        `${i + 1}. [${it.source}] ${it.title}\n   ${it.summary ?? ""}${links ? `\n   ${it.link}` : ""}`,
     )
     .join("\n\n");
+}
+
+/**
+ * Troca as referências `[n]` que o modelo escreveu pelo link do item n.
+ * URL no prompt é paga duas vezes (entrada e saída) e o modelo às vezes a
+ * reescreve errado; o número custa um token e o link sai exato do banco.
+ * `[n](` já é um link Markdown e fica como está.
+ */
+export function linkRefs(text: string, items: { link: string }[]): string {
+  return text.replace(/\[(\d{1,3})\](?!\()/g, (ref, n: string) => {
+    const link = items[Number(n) - 1]?.link;
+    return link ? `[${n}](${link})` : ref;
+  });
+}
+
+const TRACKING_PARAM = /^(utm_|mc_|fbclid$|gclid$|dclid$|msclkid$|igshid$|yclid$|_hs|ref_src$|cmpid$)/i;
+
+/**
+ * Forma canônica do link só para a deduplicação: ignora esquema, `www.`,
+ * barra final, fragmento e parâmetros de rastreio. O link guardado não muda.
+ */
+export function normalizeLink(link: string): string {
+  let url: URL;
+  try {
+    url = new URL(link.trim());
+  } catch {
+    return link.trim();
+  }
+  const host = url.hostname.toLowerCase().replace(/^www\./, "");
+  const params = [...url.searchParams].filter(([k]) => !TRACKING_PARAM.test(k));
+  params.sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+  const query = params.length ? `?${new URLSearchParams(params).toString()}` : "";
+  const path = url.pathname.replace(/\/+$/, "") || "/";
+  return `${host}${url.port ? `:${url.port}` : ""}${path}${query}`;
+}
+
+/** Título comparável: sem acento, caixa, pontuação nem espaço repetido. */
+export function titleKey(title: string): string {
+  return title
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .trim();
 }

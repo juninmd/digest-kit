@@ -50,7 +50,24 @@ describe("createChat", () => {
         { role: "user", content: "user" },
       ],
       temperature: 0.4,
+      max_tokens: 2048,
     });
+  });
+
+  test("cadeia de fallback: erro no principal passa ao próximo modelo e informa o uso", async () => {
+    const usage: unknown[] = [];
+    const calls = stubFetch((call) =>
+      (call.body as { model: string }).model === "a"
+        ? json({ error: "boom" }, 500)
+        : json({ choices: [{ message: { content: "ok" } }], usage: { prompt_tokens: 10, completion_tokens: 3 } }),
+    );
+    const chat = createChat(
+      config({ aiProvider: "compatible", aiBaseUrl: "http://gw/v1", aiModel: "a", aiFallbackModels: ["b"] }),
+      { onUsage: (u) => usage.push(u) },
+    );
+    expect(await chat("s", "u")).toBe("ok");
+    expect(calls.map((c) => (c.body as { model: string }).model)).toEqual(["a", "b"]);
+    expect(usage).toEqual([{ provider: "compatible", model: "b", inputTokens: 10, outputTokens: 3 }]);
   });
 
   test("openai e compatible usam a chave e o modelo certos", async () => {

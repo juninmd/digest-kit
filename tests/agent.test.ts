@@ -354,3 +354,32 @@ describe("startLoop", () => {
     expect(() => stop()).not.toThrow();
   });
 });
+
+describe("selectDigestItems", () => {
+  const { selectDigestItems } = require("../src/agent/agent.ts");
+  const row = (id: string, source: string, title = id) => ({
+    id, title, link: `https://x/${id}`, source, summary: null, published: null, fetched_at: "2026-01-01", digested: 0,
+  });
+
+  test("limita por fonte, preenche a sobra e descarta manchete repetida", () => {
+    const pool = [row("a1", "A"), row("a2", "A"), row("a3", "A"), row("b1", "B", "a1"), row("b2", "B")];
+    const { picked, duplicates } = selectDigestItems(pool, 4, 2);
+    expect(picked.map((r: { id: string }) => r.id)).toEqual(["a1", "a2", "b2", "a3"]);
+    expect(duplicates.map((r: { id: string }) => r.id)).toEqual(["b1"]);
+  });
+});
+
+describe("fila com expiração", () => {
+  test("pendente velho sai da fila e não volta a ser pendente", () => {
+    const store = createStore(":memory:");
+    store.insertItems([
+      { id: "old", title: "t", link: "l", source: "s", summary: "x", published: null, fetched_at: "2026-01-01T00:00:00Z" },
+      { id: "new", title: "t2", link: "l2", source: "s", summary: "x", published: null, fetched_at: "2026-01-05T00:00:00Z" },
+    ]);
+    expect(store.expirePending("2026-01-03T00:00:00Z")).toBe(1);
+    expect(store.pendingItems(10).map((i) => i.id)).toEqual(["new"]);
+    store.markDigested(["new"]);
+    expect(store.compactDigested("2026-02-01T00:00:00Z")).toBe(2);
+    expect(store.stats().pending).toBe(0);
+  });
+});

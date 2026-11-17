@@ -1,5 +1,5 @@
 // Bun entry: everything in ./core.ts plus the pieces that need bun:sqlite.
-export { createAgent, defineTopic } from "./agent/agent.ts";
+export { createAgent, defineTopic, selectDigestItems } from "./agent/agent.ts";
 export { type Mode, type Parsed, parseArgs, USAGE } from "./agent/args.ts";
 export { runAgent } from "./agent/cli.ts";
 export { loadConfig } from "./agent/config.ts";
@@ -19,12 +19,17 @@ export {
   isPollutedProse,
   isRateLimitError,
   isSafeExternalUrl,
+  linkRefs,
   looksGarbled,
   mapSettled,
   ModelChainError,
+  normalizeLink,
   redact,
   runModelChain,
   splitMessage,
+  titleKey,
+  type CreateChatOptions,
+  type FormatItemsOptions,
   withRetry,
 } from "./core.ts";
 export { createSend } from "./delivery/telegram.ts";
@@ -45,6 +50,7 @@ export type {
   AgentDeps,
   AiProvider,
   ChatFn,
+  ChatUsage,
   Config,
   DigestEvent,
   DigestOptions,

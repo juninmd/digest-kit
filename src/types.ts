@@ -41,6 +41,8 @@ export interface Config {
   aiMaxTokens: number;
   /** teto de espera por resposta do provider, em ms; 0 desliga. Padrão: 300000 */
   aiTimeoutMs?: number;
+  /** modelos tentados em ordem se o principal falhar ou vier vazio (openai, compatible, ollama) */
+  aiFallbackModels?: string[];
 
   ollamaBaseUrl: string;
   ollamaModel: string;
@@ -65,6 +67,22 @@ export interface Config {
   feedConcurrency?: number;
   timezone: string;
   locale: string;
+  /** pendente mais velho que isso (horas) sai da fila sem ser enviado; 0 desliga. Padrão: 48 */
+  pendingTtlHours?: number;
+  /** teto de itens de uma mesma fonte por digest. Padrão: 4 */
+  maxItemsPerSource?: number;
+  /** o modelo cita `[n]` e o link entra depois, em vez de mandar URLs ao modelo. Padrão: true */
+  digestLinkRefs?: boolean;
+  /** itens enviados há mais dias que isso perdem o resumo (o id fica para a deduplicação); 0 desliga. Padrão: 30 */
+  retentionDays?: number;
+}
+
+/** Tokens de uma chamada, quando o provider informa. */
+export interface ChatUsage {
+  provider: string;
+  model: string;
+  inputTokens: number;
+  outputTokens: number;
 }
 
 /** Chat single-shot: (system, user) -> texto. */
@@ -105,6 +123,10 @@ export interface Store {
   pendingItems(limit: number): Item[];
   markDigested(ids: string[]): void;
   stats?(): StoreStats;
+  /** Tira da fila (sem enviar) os pendentes coletados antes de `before` (ISO). Retorna quantos. */
+  expirePending?(before: string): number;
+  /** Apaga o resumo dos enviados antes de `before` (ISO); a linha fica para a deduplicação. */
+  compactDigested?(before: string): number;
   close(): void;
 }
 
@@ -112,6 +134,8 @@ export interface Store {
 export interface SqliteStore extends Store {
   insertItems(rows: NewItem[]): number;
   stats(): StoreStats;
+  expirePending(before: string): number;
+  compactDigested(before: string): number;
 }
 
 /** O que um digest entregou — para arquivar em outro lugar (ex.: second brain). */

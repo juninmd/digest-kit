@@ -156,3 +156,23 @@ describe("redact", () => {
     expect(redact("got header bearer abc.def.ghi")).not.toContain("abc.def.ghi");
   });
 });
+
+describe("normalizeLink / linkRefs / titleKey", () => {
+  test("ignora rastreio, www, esquema, barra final e fragmento", () => {
+    const { normalizeLink } = require("../src/util/text.ts");
+    expect(normalizeLink("https://www.a.com/x/?utm_source=t&b=2&a=1#top")).toBe("a.com/x?a=1&b=2");
+    expect(normalizeLink("http://a.com/x")).toBe(normalizeLink("https://a.com/x/"));
+    expect(normalizeLink("não é url")).toBe("não é url");
+  });
+
+  test("troca [n] pelo link e mantém o que não casa", () => {
+    const { linkRefs } = require("../src/util/text.ts");
+    const items = [{ link: "https://a/1" }, { link: "https://a/2" }];
+    expect(linkRefs("x [2] y [9] z [1](https://ja)", items)).toBe("x [2](https://a/2) y [9] z [1](https://ja)");
+  });
+
+  test("titleKey compara manchetes sem acento nem pontuação", () => {
+    const { titleKey } = require("../src/util/text.ts");
+    expect(titleKey("Ação: preço SOBE!")).toBe(titleKey("acao   preco sobe"));
+  });
+});

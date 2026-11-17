@@ -58,6 +58,13 @@ export function createStore(dbPath: string): SqliteStore {
   const markAll = db.prepare<unknown, [string]>(
     "UPDATE items SET digested = 1 WHERE id IN (SELECT value FROM json_each(?))",
   );
+  // digested = 2: saiu da fila por idade, sem envio. Continua fora de `pending`.
+  const expire = db.prepare<unknown, [string]>(
+    "UPDATE items SET digested = 2 WHERE digested = 0 AND fetched_at < ?",
+  );
+  const compact = db.prepare<unknown, [string]>(
+    "UPDATE items SET summary = NULL WHERE digested != 0 AND summary IS NOT NULL AND fetched_at < ?",
+  );
   const queueStats = db.prepare<Omit<StoreStats, "digested">, []>(`
     SELECT COUNT(*) AS total,
            (SELECT COUNT(*) FROM items WHERE digested = 0) AS pending,
@@ -78,6 +85,14 @@ export function createStore(dbPath: string): SqliteStore {
 
     markDigested(ids: string[]): void {
       if (ids.length) markAll.run(JSON.stringify(ids));
+    },
+
+    expirePending(before: string): number {
+      return expire.run(before).changes;
+    },
+
+    compactDigested(before: string): number {
+      return compact.run(before).changes;
     },
 
     stats(): StoreStats {
