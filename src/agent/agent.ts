@@ -46,6 +46,16 @@ function toRows(items: ParsedFeedItem[], feed: Feed, fetchedAt: string): NewItem
   return rows;
 }
 
+/**
+ * Até a 0.5 o id era o hash do link cru. Sem este filtro, todo item ainda
+ * presente nos feeds ganharia id novo no upgrade e seria enviado de novo.
+ */
+function withoutLegacy(store: Store, rows: NewItem[]): NewItem[] {
+  if (!store.knownIds || !rows.length) return rows;
+  const legacy = store.knownIds(rows.map((r) => idFor(r.link)));
+  return legacy.size ? rows.filter((r) => !legacy.has(idFor(r.link))) : rows;
+}
+
 /** Um lote por feed quando o store sabe gravar em lote; senão, linha a linha. */
 function insertRows(store: Store, rows: NewItem[]): number {
   if (store.insertItems) return store.insertItems(rows);
@@ -117,7 +127,7 @@ export function createAgent(topic: Topic, deps: AgentDeps = {}): Agent {
       topic.feeds,
       async (feed) => {
         const items = (await fetchFeed(feed)).slice(0, config.maxItemsPerFeed);
-        return { name: feed.name, added: insertRows(store, toRows(items, feed, fetchedAt)) };
+        return { name: feed.name, added: insertRows(store, withoutLegacy(store, toRows(items, feed, fetchedAt))) };
       },
       config.feedConcurrency ?? DEFAULT_FEED_CONCURRENCY,
     );

@@ -123,6 +123,8 @@ export interface Store {
   pendingItems(limit: number): Item[];
   markDigested(ids: string[]): void;
   stats?(): StoreStats;
+  /** Quais destes ids já existem no banco (qualquer estado). */
+  knownIds?(ids: string[]): Set<string>;
   /** Tira da fila (sem enviar) os pendentes coletados antes de `before` (ISO). Retorna quantos. */
   expirePending?(before: string): number;
   /** Apaga o resumo dos enviados antes de `before` (ISO); a linha fica para a deduplicação. */
@@ -134,6 +136,7 @@ export interface Store {
 export interface SqliteStore extends Store {
   insertItems(rows: NewItem[]): number;
   stats(): StoreStats;
+  knownIds(ids: string[]): Set<string>;
   expirePending(before: string): number;
   compactDigested(before: string): number;
 }

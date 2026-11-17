@@ -383,3 +383,18 @@ describe("fila com expiração", () => {
     expect(store.stats().pending).toBe(0);
   });
 });
+
+describe("upgrade de id", () => {
+  test("item gravado com o id antigo (hash do link cru) não volta como novo", async () => {
+    const { idFor } = require("../src/util/text.ts");
+    const store = createStore(":memory:");
+    store.insertItems([{ id: idFor("https://a.example/1"), title: "Notícia 1", link: "https://a.example/1", source: "Feed A", summary: null, published: null, fetched_at: "2026-01-01T00:00:00Z" }]);
+    store.markDigested([idFor("https://a.example/1")]);
+    const agent = createAgent(topic, {
+      store, chat: async () => "x", send: async () => {}, log: () => {},
+      fetchFeed: async (f) => (f.name === "Feed A" ? [item(1), item(2)] : []),
+      config: { pendingTtlHours: 0 },
+    });
+    expect(await agent.ingest()).toBe(1);
+  });
+});
