@@ -50,12 +50,6 @@ export function loadConfig(
 
     ollamaBaseUrl: env.OLLAMA_BASE_URL ?? "http://localhost:11434/v1",
     ollamaModel: env.OLLAMA_MODEL ?? "llama3.2",
-    openaiKey: env.OPENAI_API_KEY ?? "",
-    openaiModel: env.OPENAI_MODEL ?? "gpt-4o-mini",
-    anthropicKey: env.ANTHROPIC_API_KEY ?? "",
-    anthropicModel: env.ANTHROPIC_MODEL ?? "claude-haiku-4-5-20251001",
-    geminiKey: env.GEMINI_API_KEY ?? "",
-    geminiModel: env.GEMINI_MODEL ?? "gemini-2.5-flash",
 
     telegramToken: env.TELEGRAM_BOT_TOKEN ?? "",
     telegramChatIds: readList(env.TELEGRAM_CHAT_IDS ?? env.TELEGRAM_CHAT_ID),

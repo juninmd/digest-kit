@@ -70,18 +70,30 @@ describe("createChat", () => {
     expect(usage).toEqual([{ provider: "compatible", model: "b", inputTokens: 10, outputTokens: 3 }]);
   });
 
-  test("openai e compatible usam a chave e o modelo certos", async () => {
+  test("litellm e compatible usam a URL, a chave e o modelo do gateway", async () => {
     const calls = stubFetch(() => json({ choices: [{ message: { content: "ok" } }] }));
-    await createChat(config({ aiProvider: "openai", openaiKey: "k1" }))("s", "u");
+    await createChat(
+      config({ aiProvider: "litellm", aiBaseUrl: "http://litellm.test/v1", aiKey: "k1", aiModel: "cloud/auto" }),
+    )("s", "u");
     await createChat(
       config({ aiProvider: "compatible", aiBaseUrl: "https://gw.example/v1", aiKey: "k2", aiModel: "m" }),
     )("s", "u");
     expect(calls.map((c) => c.url)).toEqual([
-      "https://api.openai.com/v1/chat/completions",
+      "http://litellm.test/v1/chat/completions",
       "https://gw.example/v1/chat/completions",
     ]);
     expect(calls.map((c) => c.headers.authorization)).toEqual(["Bearer k1", "Bearer k2"]);
-    expect(calls[1]?.body.model).toBe("m");
+    expect(calls.map((c) => c.body.model)).toEqual(["cloud/auto", "m"]);
+  });
+
+  test("provedores diretos (openai, anthropic, google) são recusados sem chamar ninguém", async () => {
+    const calls = stubFetch(() => json({}));
+    for (const p of ["openai", "anthropic", "google"]) {
+      await expect(createChat(config({ aiProvider: p as Config["aiProvider"] }))("s", "u")).rejects.toThrow(
+        `AI_PROVIDER desconhecido: "${p}"`,
+      );
+    }
+    expect(calls).toHaveLength(0);
   });
 
   test("compatible sem base URL ou modelo falha antes de qualquer requisição", async () => {
@@ -100,43 +112,16 @@ describe("createChat", () => {
     expect(calls).toHaveLength(0);
   });
 
-  test("anthropic junta os blocos de texto e pula os que não têm texto", async () => {
-    const calls = stubFetch(() =>
-      json({ content: [{ type: "thinking", thinking: "..." }, { text: "parte 1, " }, { text: "parte 2" }] }),
-    );
-    const chat = createChat(config({ aiProvider: "anthropic", anthropicKey: "ak", aiMaxTokens: 99 }));
-    expect(await chat("sys", "user")).toBe("parte 1, parte 2");
-    expect(calls[0]?.url).toBe("https://api.anthropic.com/v1/messages");
-    expect(calls[0]?.headers["x-api-key"]).toBe("ak");
-    expect(calls[0]?.body).toMatchObject({ max_tokens: 99, system: "sys" });
-  });
-
-  test("google junta todas as partes da resposta, menos as de raciocínio", async () => {
-    const calls = stubFetch(() =>
-      json({
-        candidates: [
-          { content: { parts: [{ text: "rascunho", thought: true }, { text: "Olá, " }, { text: "mundo" }] } },
-        ],
-      }),
-    );
-    const chat = createChat(config({ aiProvider: "google", geminiKey: "gk", geminiModel: "g-1" }));
-    expect(await chat("sys", "user")).toBe("Olá, mundo");
-    expect(calls[0]?.url).toBe(
-      "https://generativelanguage.googleapis.com/v1beta/models/g-1:generateContent",
-    );
-    expect(calls[0]?.headers["x-goog-api-key"]).toBe("gk");
-  });
-
   test("resposta sem conteúdo vira string vazia (o agente cai para a lista bruta)", async () => {
     stubFetch(() => json({}));
     expect(await createChat(config({}))("s", "u")).toBe("");
-    expect(await createChat(config({ aiProvider: "anthropic" }))("s", "u")).toBe("");
-    expect(await createChat(config({ aiProvider: "google" }))("s", "u")).toBe("");
   });
 
   test("erro do provider sai com status e sem a chave", async () => {
     stubFetch(() => new Response('{"error":"bad key sk-abcdef1234567890"}', { status: 401 }));
-    const chat = createChat(config({ aiProvider: "openai", openaiKey: "sk-abcdef1234567890" }));
+    const chat = createChat(
+      config({ aiProvider: "litellm", aiBaseUrl: "http://gw/v1", aiModel: "m", aiKey: "sk-abcdef1234567890" }),
+    );
     const error = await chat("s", "u").catch((e: Error) => e);
     expect(String(error)).toContain("AI 401");
     expect(String(error)).not.toContain("abcdef1234567890");

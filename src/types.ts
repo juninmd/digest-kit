@@ -29,11 +29,12 @@ export interface Item {
 
 export type NewItem = Omit<Item, "digested">;
 
-export type AiProvider = "ollama" | "openai" | "anthropic" | "google" | "compatible";
+/** "litellm" (= "compatible") é o caminho de produção; "ollama" serve para rodar local. */
+export type AiProvider = "litellm" | "compatible" | "ollama";
 
 export interface Config {
   aiProvider: AiProvider;
-  /** provider "compatible": qualquer gateway OpenAI-compatible (LiteLLM, vLLM, Groq…) */
+  /** provider "litellm": URL, chave e modelo do LiteLLM */
   aiBaseUrl: string;
   aiKey: string;
   aiModel: string;
@@ -41,17 +42,11 @@ export interface Config {
   aiMaxTokens: number;
   /** teto de espera por resposta do provider, em ms; 0 desliga. Padrão: 300000 */
   aiTimeoutMs?: number;
-  /** modelos tentados em ordem se o principal falhar ou vier vazio (openai, compatible, ollama) */
+  /** modelos tentados em ordem se o principal falhar ou vier vazio  */
   aiFallbackModels?: string[];
 
   ollamaBaseUrl: string;
   ollamaModel: string;
-  openaiKey: string;
-  openaiModel: string;
-  anthropicKey: string;
-  anthropicModel: string;
-  geminiKey: string;
-  geminiModel: string;
 
   telegramToken: string;
   telegramChatIds: string[];

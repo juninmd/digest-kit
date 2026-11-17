@@ -13,13 +13,13 @@ describe("loadConfig", () => {
     const c = loadConfig(
       {},
       {
-        AI_PROVIDER: "anthropic",
+        AI_PROVIDER: "litellm",
         TELEGRAM_CHAT_IDS: " 111 , 222 ,",
         DIGEST_MAX_ITEMS: "5",
         DB_PATH: "./data/x.db",
       },
     );
-    expect(c.aiProvider).toBe("anthropic");
+    expect(c.aiProvider).toBe("litellm");
     expect(c.telegramChatIds).toEqual(["111", "222"]);
     expect(c.digestMaxItems).toBe(5);
     expect(c.dbPath).toBe("./data/x.db");
@@ -57,6 +57,6 @@ describe("loadConfig", () => {
 
   test("AI_PROVIDER vazio é o padrão; caixa e espaços são normalizados", () => {
     expect(loadConfig({}, { AI_PROVIDER: "" }).aiProvider).toBe("ollama");
-    expect(loadConfig({}, { AI_PROVIDER: " OpenAI " }).aiProvider).toBe("openai");
+    expect(loadConfig({}, { AI_PROVIDER: " LiteLLM " }).aiProvider).toBe("litellm");
   });
 });
