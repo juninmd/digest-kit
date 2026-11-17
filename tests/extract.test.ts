@@ -135,3 +135,16 @@ await agent.run();</code></pre>
     expect(res?.contentMarkdown).toBe("Claude Code **2.3** adds hooks and plugins.");
   });
 });
+
+describe("keepUrls: false", () => {
+  test("mantém o texto do link e tira URL e imagens", () => {
+    const { extractArticleFromHtml } = require("../src/sources/extract.ts");
+    const html = `<article><h1>T</h1><p>Leia o <a href="https://x.com/a?utm_source=y">relatório completo</a> sobre o tema, com bastante texto para passar do limite mínimo do Readability.</p><figure><img src="https://cdn.x.com/i.jpg" alt="foto"></figure></article>`;
+    const full = extractArticleFromHtml(html, { fallbackToBody: true });
+    const lean = extractArticleFromHtml(html, { fallbackToBody: true, keepUrls: false });
+    expect(full.contentMarkdown).toContain("https://x.com/a");
+    expect(lean.contentMarkdown).toContain("relatório completo");
+    expect(lean.contentMarkdown).not.toContain("https://");
+    expect(lean.charCount).toBeLessThan(full.charCount);
+  });
+});

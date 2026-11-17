@@ -16,6 +16,12 @@ export interface ExtractArticleOptions {
   charThreshold?: number;
   fallbackToBody?: boolean;
   turndownOptions?: TurndownService.Options;
+  /**
+   * false troca `[texto](url)` por `texto` e tira as imagens. Para o texto que
+   * vai a um LLM: URLs e imagens custam tokens e não ajudam a resumir
+   * (num artigo de portal, ~20-40% do Markdown). Padrão: true
+   */
+  keepUrls?: boolean;
 }
 
 /**
@@ -74,6 +80,13 @@ export function extractArticleFromHtml(
   });
 
   turndown.remove(["script", "style", "iframe", "noscript"]);
+  if (options.keepUrls === false) {
+    turndown.remove(["img", "picture", "figure"] as TurndownService.Filter);
+    turndown.addRule("linkTextOnly", {
+      filter: "a",
+      replacement: (content) => content,
+    });
+  }
 
   if (parsed?.content) {
     const textLen = parsed.textContent?.trim().length ?? 0;

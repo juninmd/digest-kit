@@ -78,3 +78,21 @@ describe("createSend", () => {
     expect(seen.every((c) => c.hasSignal && c.length <= 4096)).toBe(true);
   });
 });
+
+describe("createSend 429", () => {
+  test("respeita retry_after e reenvia uma vez", async () => {
+    const waits: number[] = [];
+    let n = 0;
+    const impl = (async () => {
+      n++;
+      return n === 1
+        ? new Response(JSON.stringify({ ok: false, parameters: { retry_after: 3 } }), { status: 429 })
+        : new Response("{}", { status: 200 });
+    }) as unknown as typeof fetch;
+    await createSend(config(["1"]), () => {}, impl, async (ms) => {
+      waits.push(ms);
+    })("oi");
+    expect(n).toBe(2);
+    expect(waits).toEqual([3000]);
+  });
+});
