@@ -206,6 +206,7 @@ O Bun carrega arquivos `.env` automaticamente. Todas as variáveis possuem padr�
 |---|---|---|
 | `AI_PROVIDER` | `ollama` | `litellm` (ou o sinônimo `compatible`) em produção; `ollama` para rodar local. Provedores diretos (`openai`, `anthropic`, `google`) foram removidos na 0.6.0 |
 | `AI_BASE_URL` / `AI_API_KEY` / `AI_MODEL` | — | URL, chave virtual e modelo do LiteLLM (`AI_PROVIDER=litellm`) |
+| `OLLAMA_BASE_URL` / `OLLAMA_MODEL` | `http://localhost:11434/v1` / `llama3.2` | Endpoint e modelo usados com `AI_PROVIDER=ollama` (execução local) |
 | `AI_TEMPERATURE` | `0.4` | Temperatura do modelo de IA |
 | `AI_TIMEOUT_MS` | `300000` | Tempo máximo de espera pela resposta do provedor; `0` desliga. Estourou, o digest sai com a lista bruta |
 | `TELEGRAM_BOT_TOKEN` | — | Token do bot. Se omitido, o digest é impresso no console |
