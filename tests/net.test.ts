@@ -32,6 +32,13 @@ describe("isSafeExternalUrl", () => {
     expect(isSafeExternalUrl("https://100.128.0.1/feed")).toBe(true);
   });
 
+  it("rejects the 198.18.0.0/15 benchmarking range but not its neighbours", () => {
+    expect(isSafeExternalUrl("https://198.18.0.1/feed")).toBe(false);
+    expect(isSafeExternalUrl("https://198.19.255.254/feed")).toBe(false);
+    expect(isSafeExternalUrl("https://198.17.0.1/feed")).toBe(true);
+    expect(isSafeExternalUrl("https://198.20.0.1/feed")).toBe(true);
+  });
+
   // new URL() folds these into a dotted quad before the range check runs.
   it("rejects short-form, hex and decimal loopback literals", () => {
     for (const target of [

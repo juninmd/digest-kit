@@ -29,6 +29,7 @@ function isBlockedIpv4(address: number): boolean {
     (a === 172 && b >= 16 && b <= 31) ||
     (a === 192 && b === 0) || // IETF protocol assignments
     (a === 192 && b === 168) ||
+    (a === 198 && (b === 18 || b === 19)) || // 198.18.0.0/15 benchmarking; fake-IP/transparent-proxy ranges
     a >= 224 // multicast, reserved, broadcast
   );
 }
