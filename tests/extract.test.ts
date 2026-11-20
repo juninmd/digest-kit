@@ -65,6 +65,13 @@ await agent.run();</code></pre>
     expect(article.charCount).toBe(article.contentMarkdown.length);
   });
 
+  test("keeps the article when a state class like cookie-notice-open sits on the body", () => {
+    const html = `<!DOCTYPE html><html><body class="cookie-notice-open"><article><h1>Real title</h1>
+      <p>${"Substantial paragraph about agents and digests. ".repeat(10)}</p></article></body></html>`;
+    const result = extractArticleFromHtml(html, { fallbackToBody: true });
+    expect(result?.contentMarkdown).toContain("Substantial paragraph");
+  });
+
   test("handles empty or non-string input safely", () => {
     // @ts-expect-error test invalid types
     expect(extractArticleFromHtml(null)).toBeNull();
