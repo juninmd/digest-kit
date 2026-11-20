@@ -23,6 +23,11 @@ describe("parseArgs", () => {
     expect(parseArgs(["--digets"])).toEqual({ error: "Argumento desconhecido: --digets" });
   });
 
+  test("nomes herdados de Object.prototype não viram modo", () => {
+    expect(parseArgs(["constructor"])).toEqual({ error: "Argumento desconhecido: constructor" });
+    expect(parseArgs(["toString"])).toEqual({ error: "Argumento desconhecido: toString" });
+  });
+
   test("recusa dois modos ao mesmo tempo", () => {
     expect("error" in parseArgs(["--ingest", "--digest"])).toBe(true);
   });
