@@ -95,4 +95,24 @@ describe("createSend 429", () => {
     expect(n).toBe(2);
     expect(waits).toEqual([3000]);
   });
+
+  test("429 no reenvio como texto simples também espera e reenvia", async () => {
+    const waits: number[] = [];
+    const modes: (string | undefined)[] = [];
+    let plain = 0;
+    const impl = (async (_url: string, init: RequestInit) => {
+      const mode = (JSON.parse(String(init.body)) as { parse_mode?: string }).parse_mode;
+      modes.push(mode);
+      if (mode) return new Response("Bad Request: can't parse entities", { status: 400 });
+      plain++;
+      return plain === 1
+        ? new Response(JSON.stringify({ ok: false, parameters: { retry_after: 2 } }), { status: 429 })
+        : new Response("{}", { status: 200 });
+    }) as unknown as typeof fetch;
+    await createSend(config(["1"]), () => {}, impl, async (ms) => {
+      waits.push(ms);
+    })("*quebrado");
+    expect(modes).toEqual(["Markdown", undefined, undefined]);
+    expect(waits).toEqual([2000]);
+  });
 });
