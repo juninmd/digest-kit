@@ -43,6 +43,8 @@ const BOILERPLATE_SELECTOR = [
   '[class*="cookie"]',
 ].join(",");
 
+const PROTECTED_TAGS = new Set(["html", "body", "main", "article"]);
+
 /**
  * Extracts the primary article content and metadata from an HTML string,
  * removing boilerplate (nav, ads, footers, scripts) and converting the main
@@ -62,7 +64,10 @@ export function extractArticleFromHtml(
   const { document } = parseHTML(rawHtml);
 
   // Pre-strip noise tags before Readability and Turndown
-  for (const node of document.querySelectorAll(BOILERPLATE_SELECTOR)) node.remove();
+  // Page-state classes on the wrapper ("cookie-notice-open") must not wipe the article itself.
+  for (const node of document.querySelectorAll(BOILERPLATE_SELECTOR)) {
+    if (!PROTECTED_TAGS.has(node.tagName.toLowerCase())) node.remove();
+  }
 
   // linkedom's document is structurally what Readability needs, but the two
   // packages do not share a DOM type (and this project compiles without lib.dom).
