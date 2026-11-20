@@ -30,7 +30,7 @@ export function parseArgs(argv: string[]): Parsed {
   let dryRun = false;
   for (const arg of argv) {
     if (arg === "--dry-run") dryRun = true;
-    else if (MODES[arg]) modes.add(MODES[arg]);
+    else if (Object.hasOwn(MODES, arg)) modes.add(MODES[arg]!);
     else return { error: `Argumento desconhecido: ${arg}` };
   }
   if (modes.size > 1) return { error: "Use apenas um modo por execução" };
