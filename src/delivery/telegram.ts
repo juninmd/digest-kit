@@ -42,18 +42,22 @@ export function createSend(
     }
   }
 
+  /** Um envio com a espera única do 429; vale para o Markdown e para o reenvio em texto simples. */
+  async function postRespectingLimit(chatId: string, chunk: string, markdown: boolean): Promise<Response> {
+    const res = await post(chatId, chunk, markdown);
+    if (res.status !== 429) return res;
+    const wait = await retryAfter(res);
+    log(`[telegram] chat ${chatId}: limite de envio — nova tentativa em ${wait}s`);
+    await sleep(wait * 1000);
+    return post(chatId, chunk, markdown);
+  }
+
   async function deliver(chatId: string, chunk: string): Promise<boolean> {
-    let res = await post(chatId, chunk, true);
-    if (res.status === 429) {
-      const wait = await retryAfter(res);
-      log(`[telegram] chat ${chatId}: limite de envio — nova tentativa em ${wait}s`);
-      await sleep(wait * 1000);
-      res = await post(chatId, chunk, true);
-    }
+    let res = await postRespectingLimit(chatId, chunk, true);
     if (res.status === 400) {
       // Quase sempre é Markdown inválido vindo do LLM: o texto ainda vale entregar.
       log(`[telegram] chat ${chatId}: Markdown recusado — reenviando como texto simples`);
-      res = await post(chatId, chunk, false);
+      res = await postRespectingLimit(chatId, chunk, false);
     }
     if (res.ok) return true;
     // O token está na URL: nunca deixe o erro carregar a URL inteira.
