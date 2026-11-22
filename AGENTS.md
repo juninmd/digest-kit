@@ -1,55 +1,48 @@
 # AGENTS.md
 
-## Projeto
-`@juninmd/digest-kit` — Núcleo compartilhado para agentes de digest (RSS → SQLite → IA → Telegram).
+`@juninmd/digest-kit`: shared core for digest agents (RSS → SQLite → AI → Telegram).
 
-## Stack & Runtimes
-- **Runtime primário:** Bun `>=1.1.0` (suporta `bun:sqlite` no pacote raiz).
-- **Runtime secundário:** Node `>=20` (compatível com subpath `@juninmd/digest-kit/core`).
-- **Gerenciador de pacotes:** Bun (`bun.lock`).
-- **TypeScript:** v5.7+ (`tsconfig.json` para Bun/testes; `tsconfig.build.json` para dist do `./core`).
+## Stack
 
-## Comandos
+- Primary runtime: Bun `>=1.1.0` (the root package uses `bun:sqlite`).
+- Secondary runtime: Node `>=20` (the `@juninmd/digest-kit/core` subpath runs on Node).
+- Package manager: Bun (`bun.lock`).
+- TypeScript 5.7+. `tsconfig.json` covers Bun and tests; `tsconfig.build.json` builds the `./core` dist.
+
+## Commands
+
 ```bash
-bun install --frozen-lockfile # Instalação
-bun test                      # Testes (159 specs, sem rede nem side effects)
-bun run typecheck             # Verificação de tipos (src, tests e bench)
-bun run build                 # Gera dist/core.js e dist/core.d.ts
-bun run bench                 # Benchmark dos caminhos quentes (sem rede)
+bun install --frozen-lockfile   # install
+bun test                        # tests: no network, no side effects
+bun run typecheck               # type check src, tests and bench
+bun run build                   # emits dist/core.js and dist/core.d.ts
+bun run bench                   # hot-path benchmark: no network
 ```
 
-Não há script de lint. Exemplo local sem credenciais: `DB_PATH=:memory: bun run example -- --ingest`.
+There is no lint script. A local example with no credentials: `DB_PATH=:memory: bun run example -- --ingest`.
 
-## Estrutura
-- `src/index.ts` (entrada Bun) e `src/core.ts` (entrada `./core`, Node).
-- `src/agent/` orquestração e CLI; `src/sources/` feeds e extração de HTML; `src/storage/` SQLite e vetores; `src/ai/` chat, cadeia de modelos e filtros de prosa; `src/delivery/` Telegram; `src/util/` primitivas puras.
-- `bench/` benchmark reprodutível; método e números em `docs/BENCHMARK.md`.
+## Structure
 
-## Gates de CI
-- `validate.yml` (PR e push em `main`): reusable `base-actions` de validação, com auditoria de dependências e varredura de segredos.
-- `security.yml` (push em `main`, semanal, manual): reusable `base-actions` de security scan (Gitleaks).
-- `publish.yml` (tag `v*`): typecheck, test, build e `npm publish`.
+- `src/index.ts` (Bun entry) and `src/core.ts` (`./core` entry, Node).
+- `src/agent/`: orchestration and CLI. `src/sources/`: feeds and HTML extraction. `src/storage/`: SQLite and vectors. `src/ai/`: chat, model chain and prose filters. `src/delivery/`: Telegram. `src/util/`: pure primitives.
+- `bench/`: reproducible benchmark. Method and numbers are in `docs/BENCHMARK.md`; past runs are in `bench/results/`.
+- `examples/meu-agente/`: a local example agent.
 
-## Não fazer
-- Importar `bun:*` em módulos reexportados por `src/core.ts` (o subpath `./core` roda em Node). `bun:sqlite` só entra em `src/storage/`; `tests/architecture.test.ts` falha se o grafo de `core.ts` alcançar `bun:*` ou `storage/`.
-- Remover ou renomear export de `src/index.ts`/`src/core.ts`: a lista da 0.4.0 está congelada em `tests/architecture.test.ts`. Membro novo em interface que o consumidor implementa (`Store`, `Config`, `AgentDeps`) entra como opcional.
-- Afirmar ganho de desempenho sem rodar `bun run bench` antes e depois.
-- Commitar `.env`, tokens ou chaves; o `.gitignore` já cobre `.env` e `data/`.
+## Conventions
 
-## Regras de Publicação
-- Registry: npm público (`https://registry.npmjs.org/`).
-- Scope: `@juninmd` com `"access": "public"`.
-- Workflow CI/CD: `.github/workflows/publish.yml` acionado por tag `v*` exigindo segredo `NPM_TOKEN`.
-- A tag do Git deve coincidir exatamente com a chave `version` do `package.json`.
+- CI gates:
+  - `validate.yml` (PRs and pushes to `main`): reusable validation from `base-actions`, with a dependency audit and a secret scan.
+  - `security.yml` (pushes to `main`, weekly, manual): reusable security scan (Gitleaks).
+  - `publish.yml` (tags `v*`): type check, test, build and `npm publish`.
+- Publishing: public npm registry (`https://registry.npmjs.org/`), scope `@juninmd` with `"access": "public"`. `publish.yml` needs the `NPM_TOKEN` secret. The Git tag must match the `version` in `package.json` exactly.
+- GitHub Actions: <!-- base-actions-main-policy -->
+  - Reference internal actions by branch, never by SHA: `uses: juninmd/base-actions/<action>@main` and `uses: juninmd/base-actions/.github/workflows/<file>.yml@main`.
+  - Do not pin `@<sha>` for `juninmd/base-actions`; updates are centralized on `main`.
+  - PRs whose checks do not start because of billing or spending limits are auto-merged by `juninmd/base-actions/.github/workflows/auto-merge-billing-blocked.yml`. Apply the `do-not-merge` label to block that.
 
-<!-- base-actions-main-policy -->
-## GitHub Actions — padrão obrigatório (@main)
+## Gotchas
 
-- Referencie as actions internas sempre pelo branch, nunca por SHA:
-  - `uses: juninmd/base-actions/<action>@main`
-  - `uses: juninmd/base-actions/.github/workflows/<arquivo>.yml@main`
-- Não fixe `@<sha>` em `juninmd/base-actions`: a atualização é centralizada no
-  `main` e passa a valer no próximo run.
-- PRs cujos checks não iniciam por billing/spending limit são mesclados pelo bot central
-  `juninmd/base-actions/.github/workflows/auto-merge-billing-blocked.yml`.
-  Para impedir o merge automático de um PR, aplique a label `do-not-merge`.
+- Do not import `bun:*` in modules re-exported by `src/core.ts`, because the `./core` subpath runs on Node. `bun:sqlite` belongs only in `src/storage/`. `tests/architecture.test.ts` fails if the `core.ts` graph reaches `bun:*` or `storage/`.
+- Do not remove or rename exports of `src/index.ts` or `src/core.ts`. The 0.4.0 export list is frozen in `tests/architecture.test.ts`. A new member of an interface that consumers implement (`Store`, `Config`, `AgentDeps`) must be optional.
+- Do not claim a performance gain without running `bun run bench` before and after the change.
+- Do not commit `.env`, tokens or keys. `.gitignore` covers `.env*` (except `.env.example`) and `data/`.
