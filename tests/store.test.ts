@@ -55,6 +55,19 @@ describe("store", () => {
     s.close();
   });
 
+  test("no mesmo lote de ingestão, os publicados mais recentes vêm primeiro", () => {
+    const s = createStore(":memory:");
+    const batch = (n: number, published: string | null): NewItem => ({ ...row(n), published });
+    s.insertItems([
+      batch(1, "2026-11-19T08:00:00.000Z"),
+      batch(2, "2026-10-01T08:00:00.000Z"),
+      batch(3, null),
+      batch(4, "Wed, 20 Nov 2026 25:99:00 +0000"),
+    ]);
+    expect(s.pendingItems(2).map((i) => i.id)).toEqual(["id-1", "id-2"]);
+    s.close();
+  });
+
   test("respeita o limite", () => {
     const s = createStore(":memory:");
     for (let i = 0; i < 5; i++) s.insertItem(row(i));

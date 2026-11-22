@@ -51,9 +51,14 @@ export function createStore(dbPath: string): SqliteStore {
     return added;
   });
 
-  const pending = db.prepare<Item, [number]>(
-    "SELECT * FROM items WHERE digested = 0 ORDER BY fetched_at DESC LIMIT ?",
-  );
+  // Um ingest grava todos os feeds com o mesmo fetched_at: sem desempate, o LIMIT corta
+  // o lote ao acaso. published ISO ordena como texto; pubDate cru ou nulo vai para o fim.
+  const pending = db.prepare<Item, [number]>(`
+    SELECT * FROM items WHERE digested = 0
+    ORDER BY fetched_at DESC,
+             CASE WHEN published GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]*' THEN published END DESC
+    LIMIT ?
+  `);
   // Um statement para a lista toda: json_each expande os ids dentro do SQLite.
   const markAll = db.prepare<unknown, [string]>(
     "UPDATE items SET digested = 1 WHERE id IN (SELECT value FROM json_each(?))",
