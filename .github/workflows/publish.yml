@@ -3,9 +3,11 @@ name: Publish
 on:
   push:
     tags: ["v*"]
+  workflow_dispatch:
 
 permissions:
   contents: read
+  id-token: write # OIDC p/ Trusted Publishing no npm (sem NPM_TOKEN)
 
 jobs:
   publish:
@@ -20,12 +22,13 @@ jobs:
         with:
           node-version: 24
           registry-url: https://registry.npmjs.org
+      - name: Trusted Publishing exige npm >= 11.5.1
+        run: npm install -g npm@latest && npm --version
       - name: Tag must match package.json version
+        if: github.ref_type == 'tag'
         run: test "v$(node -p 'require("./package.json").version')" = "$GITHUB_REF_NAME"
       - run: bun install --frozen-lockfile
       - run: bun run typecheck
       - run: bun test
       - run: bun run build
-      - run: npm publish --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - run: npm publish --access public --provenance
